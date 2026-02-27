@@ -1,0 +1,25 @@
+agentapi
+output-*.log
+snapshot-*.log
+snapshot2-*.log
+.aider*
+schema.yaml
+**/.claude/settings.local.json
+out
+
+# Compiled binaries
+agent/bin/
+agent/agent-bin
+cloud/bin/
+
+
+#IDEs
+.idea
+
+# Worktrees
+.worktrees
+
+# Config files
+.aider*
+schema.yaml
+.DS_Store
