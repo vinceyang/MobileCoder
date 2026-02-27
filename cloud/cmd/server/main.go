@@ -4,11 +4,11 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/coder/agentapi/cloud/internal/config"
-	"github.com/coder/agentapi/cloud/internal/db"
-	"github.com/coder/agentapi/cloud/internal/handler"
-	"github.com/coder/agentapi/cloud/internal/service"
-	"github.com/coder/agentapi/cloud/internal/ws"
+	"github.com/mobile-coder/cloud/internal/config"
+	"github.com/mobile-coder/cloud/internal/db"
+	"github.com/mobile-coder/cloud/internal/handler"
+	"github.com/mobile-coder/cloud/internal/service"
+	"github.com/mobile-coder/cloud/internal/ws"
 )
 
 // CORS middleware

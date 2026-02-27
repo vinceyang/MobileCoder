@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/coder/agentapi/agent/internal/client"
+	"github.com/mobile-coder/agent/internal/client"
 )
 
 func generateCode(length int) string {

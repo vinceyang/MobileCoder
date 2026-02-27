@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/coder/agentapi/cloud/internal/service"
+	"github.com/mobile-coder/cloud/internal/service"
 )
 
 type DeviceHandler struct {

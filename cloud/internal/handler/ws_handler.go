@@ -6,7 +6,7 @@ import (
 	"net/http"
 
 	"github.com/gorilla/websocket"
-	"github.com/coder/agentapi/cloud/internal/ws"
+	"github.com/mobile-coder/cloud/internal/ws"
 )
 
 var upgrader = websocket.Upgrader{
