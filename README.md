@@ -2,7 +2,7 @@
 
 移动端远程控制 Claude Code。
 
-![agentapi-chat](https://github.com/user-attachments/assets/57032c9f-4146-4b66-b219-09e38ab7690d)
+![agentapi-chat](./20260227-160445.gif)
 
 ## 新手入门
 
