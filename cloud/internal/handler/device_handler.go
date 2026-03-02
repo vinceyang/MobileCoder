@@ -30,6 +30,10 @@ type DeviceRegisterRequest struct {
 	DeviceName string `json:"device_name"`
 }
 
+type DeviceCheckRequest struct {
+	DeviceID string `json:"device_id"`
+}
+
 // Register allows Desktop Agent to register itself (no auth required)
 func (h *DeviceHandler) Register(w http.ResponseWriter, r *http.Request) {
 	var req DeviceRegisterRequest
@@ -139,5 +143,29 @@ func (h *DeviceHandler) BindAgent(w http.ResponseWriter, r *http.Request) {
 		"device_id":   device.DeviceID,
 		"device_name": device.DeviceName,
 		"status":      device.Status,
+	})
+}
+
+// CheckDevice checks if a device_id is valid
+func (h *DeviceHandler) CheckDevice(w http.ResponseWriter, r *http.Request) {
+	var req DeviceCheckRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	device, err := h.deviceService.GetDeviceByDeviceID(req.DeviceID)
+	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"valid": false,
+		})
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"valid":   true,
+		"status":  device.Status,
 	})
 }

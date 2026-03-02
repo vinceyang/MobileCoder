@@ -203,6 +203,20 @@ func (s *SupabaseDB) GetDeviceByBindCode(bindCode string) (*Device, error) {
 	return &devices[0], nil
 }
 
+func (s *SupabaseDB) GetDeviceByDeviceID(deviceID string) (*Device, error) {
+	resp, err := s.do("GET", "/devices?device_id=eq."+deviceID, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var devices []Device
+	json.Unmarshal(resp, &devices)
+	if len(devices) == 0 {
+		return nil, fmt.Errorf("device not found")
+	}
+	return &devices[0], nil
+}
+
 func (s *SupabaseDB) UpdateDeviceBindCode(deviceID string) error {
 	// Clear bind code after successful binding
 	body, _ := json.Marshal(map[string]interface{}{

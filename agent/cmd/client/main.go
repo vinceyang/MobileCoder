@@ -7,7 +7,9 @@ import (
 	"log"
 	"math/rand"
 	"net/http"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -18,6 +20,66 @@ func generateCode(length int) string {
 	bytes := make([]byte, length)
 	rand.Read(bytes)
 	return fmt.Sprintf("%x", bytes)[:length]
+}
+
+// getDeviceIDPath returns the path to store device_id for the current project
+func getDeviceIDPath() string {
+	// Get current working directory
+	cwd, _ := os.Getwd()
+	dirName := filepath.Base(cwd)
+	homeDir, _ := os.UserHomeDir()
+	return filepath.Join(homeDir, ".mobile-coder", dirName, "device-id")
+}
+
+// loadOrCreateDeviceID loads existing device_id or creates a new one
+func loadOrCreateDeviceID(serverURL string) (string, error) {
+	deviceIDPath := getDeviceIDPath()
+
+	// Try to load existing device_id
+	if data, err := os.ReadFile(deviceIDPath); err == nil {
+		deviceID := strings.TrimSpace(string(data))
+		if deviceID != "" {
+			// Check if device_id is still valid
+			resp, err := http.Post("http://"+serverURL+"/api/device/check", "application/json",
+				strings.NewReader(`{"device_id":"`+deviceID+`"}`))
+			if err == nil {
+				defer resp.Body.Close()
+				var result map[string]interface{}
+				json.NewDecoder(resp.Body).Decode(&result)
+				if valid, ok := result["valid"].(bool); ok && valid {
+					return deviceID, nil
+				}
+			}
+		}
+	}
+
+	// Generate bindCode for initial registration
+	bindCode := generateCode(6)
+
+	// Register with cloud - cloud will generate deviceID
+	resp, err := http.Post("http://"+serverURL+"/api/device/register", "application/json",
+		strings.NewReader(`{"bind_code":"`+bindCode+`","device_name":"Desktop Agent"}`))
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	var result map[string]interface{}
+	json.NewDecoder(resp.Body).Decode(&result)
+
+	// Use the deviceID returned from cloud
+	deviceID, ok := result["device_id"].(string)
+	if !ok || deviceID == "" {
+		return "", fmt.Errorf("failed to get device_id from cloud")
+	}
+
+	// Create directory if not exists
+	os.MkdirAll(filepath.Dir(deviceIDPath), 0755)
+
+	// Save to file
+	os.WriteFile(deviceIDPath, []byte(deviceID), 0644)
+
+	return deviceID, nil
 }
 
 // keyToTmux 将按键映射到 tmux 格式（使用转义序列）
@@ -88,28 +150,20 @@ func main() {
 	serverURL := flag.String("server", "localhost:8080", "Cloud server URL")
 	flag.Parse()
 
-	// 本地生成绑定码
-	bindCode := generateCode(6)
+	// 使用 device_id 持久化
+	deviceID, err := loadOrCreateDeviceID(*serverURL)
+	if err != nil {
+		log.Fatalf("Failed to load/create device ID: %v", err)
+	}
+
+	// 显示绑定信息
 	fmt.Println("==========================================")
 	fmt.Println("  请在 H5 页面输入以下绑定码:")
 	fmt.Println("==========================================")
-	fmt.Printf("  绑定码: %s\n", bindCode)
+	fmt.Printf("  设备码: %s\n", deviceID[:6])
 	fmt.Println("==========================================")
-	fmt.Println("  绑定成功后程序将启动 Claude Code")
-	fmt.Println("  同时在终端和 H5 页面都可以与 Claude 交互")
+	fmt.Println("  首次绑定后，后续启动将自动重连")
 	fmt.Println("==========================================")
-
-	// 调用 API 注册设备
-	resp, err := http.Post("http://"+*serverURL+"/api/device/register", "application/json",
-		strings.NewReader(`{"bind_code":"`+bindCode+`","device_name":"Desktop Agent"}`))
-	if err != nil {
-		log.Fatalf("Failed to register: %v", err)
-	}
-	defer resp.Body.Close()
-
-	var result map[string]interface{}
-	json.NewDecoder(resp.Body).Decode(&result)
-	deviceID, _ := result["device_id"].(string)
 
 	// 等待用户绑定
 	fmt.Println("\n请在 H5 页面输入绑定码后按回车继续...")
@@ -123,22 +177,29 @@ func main() {
 	}
 
 	// 创建 tmux 会话
-	sessionName := fmt.Sprintf("claude-%s", bindCode[:6])
+	sessionName := fmt.Sprintf("claude-%s", deviceID[:6])
 
-	// 杀掉可能存在的旧会话
-	exec.Command("tmux", "kill-session", "-t", sessionName).Run()
+	// 检查 tmux session 是否已存在
+	cmd := exec.Command("tmux", "has-session", "-t", sessionName)
+	if err := cmd.Run(); err != nil {
+		// session 不存在，创建并启动 Claude
+		exec.Command("tmux", "new-session", "-d", "-s", sessionName).Run()
+		exec.Command("tmux", "set-option", "-t", sessionName, "default-terminal", "screen-256color").Run()
 
-	// 创建新的 tmux 会话并在其中运行 claude
-	exec.Command("tmux", "new-session", "-d", "-s", sessionName).Run()
-
-	// 设置 256 色支持
-	exec.Command("tmux", "set-option", "-t", sessionName, "default-terminal", "screen-256color").Run()
-
-	// 发送命令到 tmux
-	exec.Command("tmux", "send-keys", "-t", sessionName, "claude").Run()
-	exec.Command("tmux", "send-keys", "-t", sessionName, "C-j").Run()
-	exec.Command("tmux", "send-keys", "-t", sessionName, "--dangerously-skip-permissions").Run()
-	exec.Command("tmux", "send-keys", "-t", sessionName, "C-j").Run()
+		// 首次启动使用 claude（不带 -c）
+		exec.Command("tmux", "send-keys", "-t", sessionName, "claude").Run()
+		exec.Command("tmux", "send-keys", "-t", sessionName, "C-j").Run()
+		exec.Command("tmux", "send-keys", "-t", sessionName, "--dangerously-skip-permissions").Run()
+		exec.Command("tmux", "send-keys", "-t", sessionName, "C-j").Run()
+	} else {
+		// session 已存在，使用 claude -c 继续
+		exec.Command("tmux", "send-keys", "-t", sessionName, "claude").Run()
+		exec.Command("tmux", "send-keys", "-t", sessionName, "C-j").Run()
+		exec.Command("tmux", "send-keys", "-t", sessionName, "-c").Run()
+		exec.Command("tmux", "send-keys", "-t", sessionName, "C-j").Run()
+		exec.Command("tmux", "send-keys", "-t", sessionName, "--dangerously-skip-permissions").Run()
+		exec.Command("tmux", "send-keys", "-t", sessionName, "C-j").Run()
+	}
 
 	// 捕获终端输出并发送到 H5
 	go func() {

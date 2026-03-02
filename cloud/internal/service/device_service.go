@@ -240,3 +240,18 @@ func (s *DeviceService) BindDeviceByCode(bindCode string) (*Device, error) {
 		Status:     "online",
 	}, nil
 }
+
+// GetDeviceByDeviceID gets a device by device_id
+func (s *DeviceService) GetDeviceByDeviceID(deviceID string) (*Device, error) {
+	device, err := s.db.GetDeviceByDeviceID(deviceID)
+	if err != nil {
+		return nil, ErrDeviceNotFound
+	}
+	return &Device{
+		ID:         device.ID,
+		UserID:     device.UserID,
+		DeviceID:   device.DeviceID,
+		DeviceName: device.DeviceName,
+		Status:     device.Status,
+	}, nil
+}

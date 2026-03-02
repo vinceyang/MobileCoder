@@ -63,6 +63,7 @@ func main() {
 	mux.HandleFunc("/api/device/bind", deviceHandler.BindDevice)
 	mux.HandleFunc("/api/device/bind-agent", deviceHandler.BindAgent)
 	mux.HandleFunc("/api/device/list", deviceHandler.ListDevices)
+	mux.HandleFunc("/api/device/check", deviceHandler.CheckDevice)
 
 	// WebSocket
 	mux.HandleFunc("/ws", wsHandler.HandleConnection)
