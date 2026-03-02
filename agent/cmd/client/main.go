@@ -32,10 +32,11 @@ func getDeviceIDPath() string {
 }
 
 // loadOrCreateDeviceID loads existing device_id or creates a new one
-func loadOrCreateDeviceID(serverURL string) (string, error) {
+func loadOrCreateDeviceID(serverURL string) (string, string, error) {
 	deviceIDPath := getDeviceIDPath()
+	bindCodePath := filepath.Join(filepath.Dir(deviceIDPath), "bind-code")
 
-	// Try to load existing device_id
+	// Try to load existing device_id and bind_code
 	if data, err := os.ReadFile(deviceIDPath); err == nil {
 		deviceID := strings.TrimSpace(string(data))
 		if deviceID != "" {
@@ -47,7 +48,12 @@ func loadOrCreateDeviceID(serverURL string) (string, error) {
 				var result map[string]interface{}
 				json.NewDecoder(resp.Body).Decode(&result)
 				if valid, ok := result["valid"].(bool); ok && valid {
-					return deviceID, nil
+					// Load bind_code
+					bindCode := ""
+					if data, err := os.ReadFile(bindCodePath); err == nil {
+						bindCode = strings.TrimSpace(string(data))
+					}
+					return deviceID, bindCode, nil
 				}
 			}
 		}
@@ -60,7 +66,7 @@ func loadOrCreateDeviceID(serverURL string) (string, error) {
 	resp, err := http.Post("http://"+serverURL+"/api/device/register", "application/json",
 		strings.NewReader(`{"bind_code":"`+bindCode+`","device_name":"Desktop Agent"}`))
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 	defer resp.Body.Close()
 
@@ -70,16 +76,17 @@ func loadOrCreateDeviceID(serverURL string) (string, error) {
 	// Use the deviceID returned from cloud
 	deviceID, ok := result["device_id"].(string)
 	if !ok || deviceID == "" {
-		return "", fmt.Errorf("failed to get device_id from cloud")
+		return "", "", fmt.Errorf("failed to get device_id from cloud")
 	}
 
 	// Create directory if not exists
 	os.MkdirAll(filepath.Dir(deviceIDPath), 0755)
 
-	// Save to file
+	// Save device_id and bind_code to file
 	os.WriteFile(deviceIDPath, []byte(deviceID), 0644)
+	os.WriteFile(bindCodePath, []byte(bindCode), 0644)
 
-	return deviceID, nil
+	return deviceID, bindCode, nil
 }
 
 // keyToTmux 将按键映射到 tmux 格式（使用转义序列）
@@ -151,7 +158,7 @@ func main() {
 	flag.Parse()
 
 	// 使用 device_id 持久化
-	deviceID, err := loadOrCreateDeviceID(*serverURL)
+	deviceID, bindCode, err := loadOrCreateDeviceID(*serverURL)
 	if err != nil {
 		log.Fatalf("Failed to load/create device ID: %v", err)
 	}
@@ -160,7 +167,7 @@ func main() {
 	fmt.Println("==========================================")
 	fmt.Println("  请在 H5 页面输入以下绑定码:")
 	fmt.Println("==========================================")
-	fmt.Printf("  设备码: %s\n", deviceID[:6])
+	fmt.Printf("  绑定码: %s\n", bindCode)
 	fmt.Println("==========================================")
 	fmt.Println("  首次绑定后，后续启动将自动重连")
 	fmt.Println("==========================================")
