@@ -25,6 +25,14 @@ type Device struct {
 	Status      string
 }
 
+type Session struct {
+	ID          int64
+	DeviceID    string
+	SessionName string
+	ProjectPath string
+	Status      string
+}
+
 type DeviceService struct {
 	db *db.SupabaseDB
 }
@@ -289,4 +297,24 @@ func (s *DeviceService) GetDeviceByDeviceID(deviceID string) (*Device, error) {
 		DeviceName: device.DeviceName,
 		Status:     device.Status,
 	}, nil
+}
+
+// GetDeviceSessions 获取设备的所有 Session
+func (s *DeviceService) GetDeviceSessions(deviceID string) ([]Session, error) {
+	sessions, err := s.db.GetSessionsByDevice(deviceID)
+	if err != nil {
+		return nil, err
+	}
+
+	var result []Session
+	for _, ses := range sessions {
+		result = append(result, Session{
+			ID:          ses.ID,
+			DeviceID:    ses.DeviceID,
+			SessionName: ses.SessionName,
+			ProjectPath: ses.ProjectPath,
+			Status:      ses.Status,
+		})
+	}
+	return result, nil
 }

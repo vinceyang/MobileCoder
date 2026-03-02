@@ -167,6 +167,56 @@ type Device struct {
 	CreatedAt    string `json:"created_at"`
 }
 
+// Session operations
+type Session struct {
+	ID          int64  `json:"id"`
+	DeviceID    string `json:"device_id"`
+	SessionName string `json:"session_name"`
+	ProjectPath string `json:"project_path"`
+	Status      string `json:"status"`
+	CreatedAt   string `json:"created_at"`
+}
+
+func (s *SupabaseDB) CreateSession(deviceID, sessionName, projectPath string) (*Session, error) {
+	body, _ := json.Marshal(map[string]interface{}{
+		"device_id":     deviceID,
+		"session_name":  sessionName,
+		"project_path":  projectPath,
+		"status":        "active",
+	})
+
+	resp, err := s.do("POST", "/sessions", body)
+	if err != nil {
+		return nil, err
+	}
+
+	var sessions []Session
+	json.Unmarshal(resp, &sessions)
+	if len(sessions) == 0 {
+		return nil, fmt.Errorf("session not created")
+	}
+	return &sessions[0], nil
+}
+
+func (s *SupabaseDB) GetSessionsByDevice(deviceID string) ([]Session, error) {
+	resp, err := s.do("GET", "/sessions?device_id=eq."+deviceID, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var sessions []Session
+	json.Unmarshal(resp, &sessions)
+	return sessions, nil
+}
+
+func (s *SupabaseDB) UpdateSessionStatus(sessionID int64, status string) error {
+	body, _ := json.Marshal(map[string]interface{}{
+		"status": status,
+	})
+	_, err := s.do("PATCH", "/sessions?id=eq."+fmt.Sprintf("%d", sessionID), body)
+	return err
+}
+
 func (s *SupabaseDB) CreateDevice(userID int64, deviceID, deviceName, bindCode string, bindCodeExp string) (*Device, error) {
 	log.Printf("CreateDevice: userID=%d, deviceID=%s, deviceName=%s, bindCode=%s, bindCodeExp=%s",
 		userID, deviceID, deviceName, bindCode, bindCodeExp)

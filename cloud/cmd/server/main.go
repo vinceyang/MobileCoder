@@ -71,6 +71,7 @@ func main() {
 	mux.HandleFunc("/api/device/list", deviceHandler.ListDevices)
 	mux.HandleFunc("/api/device/check", deviceHandler.CheckDevice)
 	mux.HandleFunc("/api/devices", deviceHandler.GetUserDevices)
+	mux.HandleFunc("/api/devices/sessions", deviceHandler.GetDeviceSessions)
 
 	// WebSocket
 	mux.HandleFunc("/ws", wsHandler.HandleConnection)

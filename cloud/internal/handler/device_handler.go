@@ -209,3 +209,23 @@ func (h *DeviceHandler) GetUserDevices(w http.ResponseWriter, r *http.Request) {
 		"devices": devices,
 	})
 }
+
+// GetDeviceSessions 获取设备的所有 Session
+func (h *DeviceHandler) GetDeviceSessions(w http.ResponseWriter, r *http.Request) {
+	deviceID := r.URL.Query().Get("device_id")
+	if deviceID == "" {
+		http.Error(w, "device_id required", http.StatusBadRequest)
+		return
+	}
+
+	sessions, err := h.deviceService.GetDeviceSessions(deviceID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"sessions": sessions,
+	})
+}
