@@ -200,15 +200,15 @@ func main() {
 	// 检查 tmux session 是否已存在
 	cmd := exec.Command("tmux", "has-session", "-t", sessionName)
 	if err := cmd.Run(); err != nil {
-		// session 不存在，创建并启动 Claude
-		exec.Command("tmux", "new-session", "-d", "-s", sessionName).Run()
-		exec.Command("tmux", "set-option", "-t", sessionName, "default-terminal", "screen-256color").Run()
-
-		// 使用 bash -c 在干净环境中启动 claude
-		exec.Command("tmux", "send-keys", "-t", sessionName, "bash", "-lc", "env -u CLAUDECODE claude --dangerously-skip-permissions").Run()
+		// 创建新的 tmux session 并在其中运行 claude（移除 CLAUDECODE 环境变量）
+		exec.Command("tmux", "new-session", "-d", "-s", sessionName, "env", "-u", "CLAUDECODE", "claude", "--dangerously-skip-permissions").Run()
 	} else {
-		// session 已存在，使用 claude -c 继续
-		exec.Command("tmux", "send-keys", "-t", sessionName, "bash", "-lc", "env -u CLAUDECODE claude -c --dangerously-skip-permissions").Run()
+		// session 已存在，发送 continue 命令
+		exec.Command("tmux", "send-keys", "-t", sessionName, "env", "-u", "CLAUDECODE", "C-z").Run()
+		time.Sleep(200 * time.Millisecond)
+		exec.Command("tmux", "send-keys", "-t", sessionName, "claude", "-c", "C-m").Run()
+		time.Sleep(200 * time.Millisecond)
+		exec.Command("tmux", "send-keys", "-t", sessionName, "--dangerously-skip-permissions", "C-m").Run()
 	}
 
 	// 捕获终端输出并发送到 H5
