@@ -165,10 +165,21 @@ func main() {
 	fmt.Println("  首次绑定后，后续启动将自动重连")
 	fmt.Println("==========================================")
 
-	// 等待用户绑定
-	fmt.Println("\n请在 H5 页面输入绑定码后按回车继续...")
-	var input string
-	fmt.Scanln(&input)
+	// 检查是否需要等待绑定（仅首次启动需要）
+	needsBind := false
+	if data, err := os.ReadFile(getDeviceIDPath()); err != nil || len(strings.TrimSpace(string(data))) == 0 {
+		needsBind = true
+	}
+
+	if needsBind {
+		// 首次启动，等待用户绑定
+		fmt.Println("\n请在 H5 页面输入绑定码后按回车继续...")
+		var input string
+		fmt.Scanln(&input)
+	} else {
+		// 重连，直接继续
+		fmt.Println("\n自动重连中...")
+	}
 
 	// WebSocket 连接
 	ws, err := client.NewWSClient("ws://"+*serverURL+"/ws", deviceID)
