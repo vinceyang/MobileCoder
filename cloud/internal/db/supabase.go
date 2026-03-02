@@ -137,6 +137,23 @@ func (s *SupabaseDB) GetUserByUsername(username string) (*User, error) {
 	return &users[0], nil
 }
 
+func (s *SupabaseDB) GetUserByEmail(email string) (*User, error) {
+	log.Printf("GetUserByEmail: %s", email)
+	resp, err := s.do("GET", "/users?email=eq."+email, nil)
+	if err != nil {
+		log.Printf("GetUserByEmail error: %v", err)
+		return nil, err
+	}
+	log.Printf("GetUserByEmail response: %s", string(resp))
+
+	var users []User
+	json.Unmarshal(resp, &users)
+	if len(users) == 0 {
+		return nil, fmt.Errorf("user not found")
+	}
+	return &users[0], nil
+}
+
 // Device operations
 type Device struct {
 	ID           int64  `json:"id"`
