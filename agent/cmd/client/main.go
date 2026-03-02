@@ -204,19 +204,11 @@ func main() {
 		exec.Command("tmux", "new-session", "-d", "-s", sessionName).Run()
 		exec.Command("tmux", "set-option", "-t", sessionName, "default-terminal", "screen-256color").Run()
 
-		// 首次启动使用 claude（不带 -c）
-		exec.Command("tmux", "send-keys", "-t", sessionName, "claude").Run()
-		exec.Command("tmux", "send-keys", "-t", sessionName, "C-j").Run()
-		exec.Command("tmux", "send-keys", "-t", sessionName, "--dangerously-skip-permissions").Run()
-		exec.Command("tmux", "send-keys", "-t", sessionName, "C-j").Run()
+		// 使用 bash -c 在干净环境中启动 claude
+		exec.Command("tmux", "send-keys", "-t", sessionName, "bash", "-lc", "env -u CLAUDECODE claude --dangerously-skip-permissions").Run()
 	} else {
 		// session 已存在，使用 claude -c 继续
-		exec.Command("tmux", "send-keys", "-t", sessionName, "claude").Run()
-		exec.Command("tmux", "send-keys", "-t", sessionName, "C-j").Run()
-		exec.Command("tmux", "send-keys", "-t", sessionName, "-c").Run()
-		exec.Command("tmux", "send-keys", "-t", sessionName, "C-j").Run()
-		exec.Command("tmux", "send-keys", "-t", sessionName, "--dangerously-skip-permissions").Run()
-		exec.Command("tmux", "send-keys", "-t", sessionName, "C-j").Run()
+		exec.Command("tmux", "send-keys", "-t", sessionName, "bash", "-lc", "env -u CLAUDECODE claude -c --dangerously-skip-permissions").Run()
 	}
 
 	// 捕获终端输出并发送到 H5
