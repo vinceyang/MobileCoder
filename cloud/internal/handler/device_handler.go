@@ -106,13 +106,50 @@ func (h *DeviceHandler) CreateBindCode(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *DeviceHandler) BindDevice(w http.ResponseWriter, r *http.Request) {
-	// 简化版：无需用户登录，直接通过绑定码绑定设备
+	// 检查是否有 Authorization header，如果有则绑定到用户
+	token := r.Header.Get("Authorization")
+
 	var req BindRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "invalid request body", http.StatusBadRequest)
 		return
 	}
 
+	// 如果有 token，绑定到对应用户
+	if token != "" {
+		userID, err := parseToken(token)
+		if err != nil {
+			// 如果 token 无效，回退到简化版
+			device, err := h.deviceService.BindDeviceSimple(req.BindCode)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusBadRequest)
+				return
+			}
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"device_id":   device.DeviceID,
+				"device_name": device.DeviceName,
+				"status":      device.Status,
+			})
+			return
+		}
+
+		// 绑定到指定用户
+		device, err := h.deviceService.BindDeviceToUser(req.BindCode, userID)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"device_id":   device.DeviceID,
+			"device_name": device.DeviceName,
+			"status":      device.Status,
+		})
+		return
+	}
+
+	// 无 token，回退到简化版
 	device, err := h.deviceService.BindDeviceSimple(req.BindCode)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
