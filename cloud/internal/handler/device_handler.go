@@ -2,10 +2,23 @@ package handler
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
+	"strings"
 
 	"github.com/mobile-coder/cloud/internal/service"
 )
+
+// parseToken 解析 token 获取 userID (简化版)
+func parseToken(token string) (int64, error) {
+	// 格式: "token_email_timestamp"
+	if strings.HasPrefix(token, "token_") {
+		// 暂时返回一个假的 userID，用于测试
+		// 实际应该用 JWT
+		return 1, nil
+	}
+	return 0, errors.New("invalid token format")
+}
 
 type DeviceHandler struct {
 	deviceService *service.DeviceService
@@ -167,5 +180,32 @@ func (h *DeviceHandler) CheckDevice(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"valid":   true,
 		"status":  device.Status,
+	})
+}
+
+// GetUserDevices 获取用户的所有设备
+func (h *DeviceHandler) GetUserDevices(w http.ResponseWriter, r *http.Request) {
+	// 从 header 获取 token，解析 userID
+	token := r.Header.Get("Authorization")
+	if token == "" {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	userID, err := parseToken(token)
+	if err != nil {
+		http.Error(w, "invalid token", http.StatusUnauthorized)
+		return
+	}
+
+	devices, err := h.deviceService.GetUserDevices(userID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"devices": devices,
 	})
 }

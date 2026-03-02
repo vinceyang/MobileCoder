@@ -241,6 +241,41 @@ func (s *DeviceService) BindDeviceByCode(bindCode string) (*Device, error) {
 	}, nil
 }
 
+// BindDeviceToUser 将设备绑定到用户
+func (s *DeviceService) BindDeviceToUser(bindCode string, userID int64) (*Device, error) {
+	// 通过绑定码找到设备
+	device, err := s.db.GetDeviceByBindCode(bindCode)
+	if err != nil {
+		return nil, ErrDeviceNotFound
+	}
+
+	// 检查用户已绑定设备数量
+	userDevices, err := s.db.GetUserDevices(userID)
+	if err == nil && len(userDevices) >= 5 {
+		return nil, errors.New("max devices reached")
+	}
+
+	// 绑定用户
+	err = s.db.BindDeviceToUser(device.DeviceID, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	// 清空绑定码
+	err = s.db.UpdateDeviceBindCode(device.DeviceID)
+	if err != nil {
+		return nil, err
+	}
+
+	return &Device{
+		ID:         device.ID,
+		UserID:     userID,
+		DeviceID:   device.DeviceID,
+		DeviceName: device.DeviceName,
+		Status:     "online",
+	}, nil
+}
+
 // GetDeviceByDeviceID gets a device by device_id
 func (s *DeviceService) GetDeviceByDeviceID(deviceID string) (*Device, error) {
 	device, err := s.db.GetDeviceByDeviceID(deviceID)

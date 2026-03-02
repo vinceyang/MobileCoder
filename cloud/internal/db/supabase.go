@@ -246,6 +246,15 @@ func (s *SupabaseDB) UpdateDeviceBindCode(deviceID string) error {
 	return err
 }
 
+func (s *SupabaseDB) BindDeviceToUser(deviceID string, userID int64) error {
+	body, _ := json.Marshal(map[string]interface{}{
+		"user_id": userID,
+		"status":  "online",
+	})
+	_, err := s.do("PATCH", "/devices?device_id=eq."+deviceID, body)
+	return err
+}
+
 func (s *SupabaseDB) GetUserDevices(userID int64) ([]Device, error) {
 	resp, err := s.do("GET", "/devices?user_id=eq."+fmt.Sprintf("%d", userID), nil)
 	if err != nil {
