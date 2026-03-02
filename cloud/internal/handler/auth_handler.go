@@ -2,6 +2,7 @@ package handler
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"time"
 
@@ -93,5 +94,5 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 
 // generateToken 生成简单的 token (实际应使用 JWT)
 func generateToken(userID int64, email string) string {
-	return "token_" + email + "_" + time.Now().Format("20060102150405")
+	return fmt.Sprintf("token_%d_%s_%d", userID, email, time.Now().Unix())
 }

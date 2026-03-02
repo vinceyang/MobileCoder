@@ -4,20 +4,26 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/mobile-coder/cloud/internal/service"
 )
 
-// parseToken 解析 token 获取 userID (简化版)
+// parseToken 解析 token 获取 userID
+// 格式: "token_userID_email_timestamp"
 func parseToken(token string) (int64, error) {
-	// 格式: "token_email_timestamp"
-	if strings.HasPrefix(token, "token_") {
-		// 暂时返回一个假的 userID，用于测试
-		// 实际应该用 JWT
-		return 1, nil
+	// 格式: "token_userID_email_timestamp"
+	parts := strings.Split(token, "_")
+	if len(parts) < 3 {
+		return 0, errors.New("invalid token format")
 	}
-	return 0, errors.New("invalid token format")
+	// parts[0] = "token", parts[1] = userID, parts[2] = email
+	userID, err := strconv.ParseInt(parts[1], 10, 64)
+	if err != nil {
+		return 0, errors.New("invalid token format")
+	}
+	return userID, nil
 }
 
 type DeviceHandler struct {
