@@ -203,12 +203,10 @@ func main() {
 		// 创建新的 tmux session 并在其中运行 claude（移除 CLAUDECODE 环境变量）
 		exec.Command("tmux", "new-session", "-d", "-s", sessionName, "env", "-u", "CLAUDECODE", "claude", "--dangerously-skip-permissions").Run()
 	} else {
-		// session 已存在，发送 continue 命令
-		exec.Command("tmux", "send-keys", "-t", sessionName, "env", "-u", "CLAUDECODE", "C-z").Run()
-		time.Sleep(200 * time.Millisecond)
-		exec.Command("tmux", "send-keys", "-t", sessionName, "claude", "-c", "C-m").Run()
-		time.Sleep(200 * time.Millisecond)
-		exec.Command("tmux", "send-keys", "-t", sessionName, "--dangerously-skip-permissions", "C-m").Run()
+		// session 已存在，发送 Ctrl+C 停止当前，然后发送继续命令
+		exec.Command("tmux", "send-keys", "-t", sessionName, "C-c").Run()
+		time.Sleep(300 * time.Millisecond)
+		exec.Command("tmux", "send-keys", "-t", sessionName, "env", "-u", "CLAUDECODE", "claude", "-c", "--dangerously-skip-permissions", "C-m").Run()
 	}
 
 	// 捕获终端输出并发送到 H5
