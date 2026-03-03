@@ -53,17 +53,28 @@ func main() {
 
 	// Initialize handlers
 	deviceHandler := handler.NewDeviceHandler(deviceService)
-	wsHandler := handler.NewWSHubHandler(hub)
+	authService := service.NewAuthService(database)
+	authHandler := handler.NewAuthHandler(authService)
+	wsHandler := handler.NewWSHubHandler(hub, deviceService)
 
-	// Routes - 简化版（移除用户登录相关）
+	// Routes
 	mux := http.NewServeMux()
 
-	// Device routes - 简化，移除 token 验证
+	// Auth routes
+	mux.HandleFunc("/api/auth/register", authHandler.Register)
+	mux.HandleFunc("/api/auth/login", authHandler.Login)
+
+	// Device routes
 	mux.HandleFunc("/api/device/register", deviceHandler.Register)
 	mux.HandleFunc("/api/device/bind", deviceHandler.BindDevice)
 	mux.HandleFunc("/api/device/bind-agent", deviceHandler.BindAgent)
 	mux.HandleFunc("/api/device/list", deviceHandler.ListDevices)
 	mux.HandleFunc("/api/device/check", deviceHandler.CheckDevice)
+	mux.HandleFunc("/api/device/update", deviceHandler.UpdateDevice)
+	mux.HandleFunc("/api/device/delete", deviceHandler.DeleteDevice)
+	mux.HandleFunc("/api/devices", deviceHandler.GetUserDevices)
+	mux.HandleFunc("/api/devices/sessions", deviceHandler.GetDeviceSessions)
+	mux.HandleFunc("/api/sessions", deviceHandler.CreateSession)
 
 	// WebSocket
 	mux.HandleFunc("/ws", wsHandler.HandleConnection)

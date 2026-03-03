@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"github.com/gorilla/websocket"
+	"github.com/mobile-coder/cloud/internal/service"
 	"github.com/mobile-coder/cloud/internal/ws"
 )
 
@@ -14,11 +15,15 @@ var upgrader = websocket.Upgrader{
 }
 
 type WSHubHandler struct {
-	hub *ws.Hub
+	hub           *ws.Hub
+	deviceService *service.DeviceService
 }
 
-func NewWSHubHandler(hub *ws.Hub) *WSHubHandler {
-	return &WSHubHandler{hub: hub}
+func NewWSHubHandler(hub *ws.Hub, deviceService *service.DeviceService) *WSHubHandler {
+	return &WSHubHandler{
+		hub:           hub,
+		deviceService: deviceService,
+	}
 }
 
 func (h *WSHubHandler) HandleConnection(w http.ResponseWriter, r *http.Request) {
@@ -74,6 +79,12 @@ func (h *WSHubHandler) readPump(client *ws.Client) {
 	defer func() {
 		h.hub.Unregister(client.DeviceID)
 		client.Conn.Close()
+
+		// If agent disconnects, update session status to inactive
+		if client.IsAgent {
+			log.Printf("Agent disconnected, updating session status to inactive for deviceID=%s", client.DeviceID)
+			h.deviceService.UpdateSessionStatus(client.DeviceID, "inactive")
+		}
 	}()
 
 	for {

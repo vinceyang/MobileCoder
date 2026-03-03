@@ -25,6 +25,14 @@ type Device struct {
 	Status      string
 }
 
+type Session struct {
+	ID          int64
+	DeviceID    string
+	SessionName string
+	ProjectPath string
+	Status      string
+}
+
 type DeviceService struct {
 	db *db.SupabaseDB
 }
@@ -197,12 +205,18 @@ func (s *DeviceService) ListAllDevices() ([]Device, error) {
 
 	var result []Device
 	for _, d := range devices {
+		// Parse time - Supabase stores as "2026-02-25T18:03:16" without timezone
+		loc := time.FixedZone("UTC+8", 8*3600)
+		parsedTime, _ := time.ParseInLocation("2006-01-02T15:04:05", d.BindCodeExp, loc)
+
 		result = append(result, Device{
-			ID:         d.ID,
-			UserID:     d.UserID,
-			DeviceID:   d.DeviceID,
-			DeviceName: d.DeviceName,
-			Status:     d.Status,
+			ID:          d.ID,
+			UserID:      d.UserID,
+			DeviceID:    d.DeviceID,
+			DeviceName:  d.DeviceName,
+			BindCode:    d.BindCode,
+			BindCodeExp: parsedTime,
+			Status:      d.Status,
 		})
 	}
 	return result, nil
@@ -241,6 +255,41 @@ func (s *DeviceService) BindDeviceByCode(bindCode string) (*Device, error) {
 	}, nil
 }
 
+// BindDeviceToUser 将设备绑定到用户
+func (s *DeviceService) BindDeviceToUser(bindCode string, userID int64) (*Device, error) {
+	// 通过绑定码找到设备
+	device, err := s.db.GetDeviceByBindCode(bindCode)
+	if err != nil {
+		return nil, ErrDeviceNotFound
+	}
+
+	// 检查用户已绑定设备数量
+	userDevices, err := s.db.GetUserDevices(userID)
+	if err == nil && len(userDevices) >= 5 {
+		return nil, errors.New("max devices reached")
+	}
+
+	// 绑定用户
+	err = s.db.BindDeviceToUser(device.DeviceID, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	// 清空绑定码
+	err = s.db.UpdateDeviceBindCode(device.DeviceID)
+	if err != nil {
+		return nil, err
+	}
+
+	return &Device{
+		ID:         device.ID,
+		UserID:     userID,
+		DeviceID:   device.DeviceID,
+		DeviceName: device.DeviceName,
+		Status:     "online",
+	}, nil
+}
+
 // GetDeviceByDeviceID gets a device by device_id
 func (s *DeviceService) GetDeviceByDeviceID(deviceID string) (*Device, error) {
 	device, err := s.db.GetDeviceByDeviceID(deviceID)
@@ -254,4 +303,55 @@ func (s *DeviceService) GetDeviceByDeviceID(deviceID string) (*Device, error) {
 		DeviceName: device.DeviceName,
 		Status:     device.Status,
 	}, nil
+}
+
+// GetDeviceSessions 获取设备的所有 Session
+func (s *DeviceService) GetDeviceSessions(deviceID string) ([]Session, error) {
+	sessions, err := s.db.GetSessionsByDevice(deviceID)
+	if err != nil {
+		return nil, err
+	}
+
+	var result []Session
+	for _, ses := range sessions {
+		result = append(result, Session{
+			ID:          ses.ID,
+			DeviceID:    ses.DeviceID,
+			SessionName: ses.SessionName,
+			ProjectPath: ses.ProjectPath,
+			Status:      ses.Status,
+		})
+	}
+	return result, nil
+}
+
+// CreateSession 创建设备的 Session
+func (s *DeviceService) CreateSession(deviceID, sessionName, projectPath string) (*Session, error) {
+	session, err := s.db.CreateSession(deviceID, sessionName, projectPath)
+	if err != nil {
+		return nil, err
+	}
+
+	return &Session{
+		ID:          session.ID,
+		DeviceID:    session.DeviceID,
+		SessionName: session.SessionName,
+		ProjectPath: session.ProjectPath,
+		Status:      session.Status,
+	}, nil
+}
+
+// UpdateSessionStatus updates session status when agent disconnects
+func (s *DeviceService) UpdateSessionStatus(deviceID, status string) error {
+	return s.db.UpdateSessionStatus(deviceID, status)
+}
+
+// UpdateDeviceName updates the device name
+func (s *DeviceService) UpdateDeviceName(deviceID, deviceName string) error {
+	return s.db.UpdateDeviceName(deviceID, deviceName)
+}
+
+// DeleteDevice deletes a device
+func (s *DeviceService) DeleteDevice(deviceID string) error {
+	return s.db.DeleteDevice(deviceID)
 }

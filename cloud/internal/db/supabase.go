@@ -137,6 +137,23 @@ func (s *SupabaseDB) GetUserByUsername(username string) (*User, error) {
 	return &users[0], nil
 }
 
+func (s *SupabaseDB) GetUserByEmail(email string) (*User, error) {
+	log.Printf("GetUserByEmail: %s", email)
+	resp, err := s.do("GET", "/users?email=eq."+email, nil)
+	if err != nil {
+		log.Printf("GetUserByEmail error: %v", err)
+		return nil, err
+	}
+	log.Printf("GetUserByEmail response: %s", string(resp))
+
+	var users []User
+	json.Unmarshal(resp, &users)
+	if len(users) == 0 {
+		return nil, fmt.Errorf("user not found")
+	}
+	return &users[0], nil
+}
+
 // Device operations
 type Device struct {
 	ID           int64  `json:"id"`
@@ -148,6 +165,57 @@ type Device struct {
 	Status       string `json:"status"`
 	LastActiveAt string `json:"last_active_at"`
 	CreatedAt    string `json:"created_at"`
+}
+
+// Session operations
+type Session struct {
+	ID          int64  `json:"id"`
+	DeviceID    string `json:"device_id"`
+	SessionName string `json:"session_name"`
+	ProjectPath string `json:"project_path"`
+	Status      string `json:"status"`
+	CreatedAt   string `json:"created_at"`
+}
+
+func (s *SupabaseDB) CreateSession(deviceID, sessionName, projectPath string) (*Session, error) {
+	body, _ := json.Marshal(map[string]interface{}{
+		"device_id":     deviceID,
+		"session_name":  sessionName,
+		"project_path":  projectPath,
+		"status":        "active",
+	})
+
+	resp, err := s.do("POST", "/sessions", body)
+	if err != nil {
+		return nil, err
+	}
+
+	var sessions []Session
+	json.Unmarshal(resp, &sessions)
+	if len(sessions) == 0 {
+		return nil, fmt.Errorf("session not created")
+	}
+	return &sessions[0], nil
+}
+
+// UpdateSessionStatus updates session status (e.g., to 'inactive' when agent disconnects)
+func (s *SupabaseDB) UpdateSessionStatus(deviceID, status string) error {
+	body, _ := json.Marshal(map[string]string{
+		"status": status,
+	})
+	_, err := s.do("PATCH", "/sessions?device_id=eq."+deviceID+"&status=eq.active", body)
+	return err
+}
+
+func (s *SupabaseDB) GetSessionsByDevice(deviceID string) ([]Session, error) {
+	resp, err := s.do("GET", "/sessions?device_id=eq."+deviceID, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var sessions []Session
+	json.Unmarshal(resp, &sessions)
+	return sessions, nil
 }
 
 func (s *SupabaseDB) CreateDevice(userID int64, deviceID, deviceName, bindCode string, bindCodeExp string) (*Device, error) {
@@ -229,6 +297,15 @@ func (s *SupabaseDB) UpdateDeviceBindCode(deviceID string) error {
 	return err
 }
 
+func (s *SupabaseDB) BindDeviceToUser(deviceID string, userID int64) error {
+	body, _ := json.Marshal(map[string]interface{}{
+		"user_id": userID,
+		"status":  "online",
+	})
+	_, err := s.do("PATCH", "/devices?device_id=eq."+deviceID, body)
+	return err
+}
+
 func (s *SupabaseDB) GetUserDevices(userID int64) ([]Device, error) {
 	resp, err := s.do("GET", "/devices?user_id=eq."+fmt.Sprintf("%d", userID), nil)
 	if err != nil {
@@ -250,6 +327,22 @@ func (s *SupabaseDB) ListAllDevices() ([]Device, error) {
 	var devices []Device
 	json.Unmarshal(resp, &devices)
 	return devices, nil
+}
+
+// UpdateDeviceName updates the device name
+func (s *SupabaseDB) UpdateDeviceName(deviceID, deviceName string) error {
+	data := map[string]string{
+		"device_name": deviceName,
+	}
+	body, _ := json.Marshal(data)
+	_, err := s.do("PATCH", "/devices?device_id=eq."+deviceID, body)
+	return err
+}
+
+// DeleteDevice deletes a device by device_id
+func (s *SupabaseDB) DeleteDevice(deviceID string) error {
+	_, err := s.do("DELETE", "/devices?device_id=eq."+deviceID, nil)
+	return err
 }
 
 // InitDB returns a simple DB wrapper that uses Supabase REST API

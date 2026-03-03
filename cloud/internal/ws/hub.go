@@ -115,8 +115,10 @@ func (h *Hub) BroadcastToUser(userID int64, message []byte) {
 func (h *Hub) SendToAgents(deviceID string, message []byte) {
 	h.mu.RLock()
 	defer h.mu.RUnlock()
+	log.Printf("SendToAgents: looking for agents for deviceID=%s, total clients=%d", deviceID, len(h.clients[deviceID]))
 	if clients, ok := h.clients[deviceID]; ok {
 		for client := range clients {
+			log.Printf("SendToAgents: client IsAgent=%v, deviceID=%s", client.IsAgent, client.DeviceID)
 			if client.IsAgent {
 				select {
 				case client.Send <- message:

@@ -22,19 +22,31 @@ func generateCode(length int) string {
 	return fmt.Sprintf("%x", bytes)[:length]
 }
 
-// getDeviceIDPath returns the path to store device_id for the current project
+// getDeviceName returns the computer's hostname
+func getDeviceName() string {
+	hostname, err := os.Hostname()
+	if err != nil || hostname == "" {
+		return "Desktop Agent"
+	}
+	return hostname
+}
+
+// getDeviceIDPath returns the path to store device_id (one per computer, not per directory)
 func getDeviceIDPath() string {
-	// Get current working directory
-	cwd, _ := os.Getwd()
-	dirName := filepath.Base(cwd)
 	homeDir, _ := os.UserHomeDir()
-	return filepath.Join(homeDir, ".mobile-coder", dirName, "device-id")
+	return filepath.Join(homeDir, ".MobileCoder", "device-id")
+}
+
+// getBindCodePath returns the path to store bind_code
+func getBindCodePath() string {
+	homeDir, _ := os.UserHomeDir()
+	return filepath.Join(homeDir, ".MobileCoder", "bind-code")
 }
 
 // loadOrCreateDeviceID loads existing device_id or creates a new one
 func loadOrCreateDeviceID(serverURL string) (string, string, error) {
 	deviceIDPath := getDeviceIDPath()
-	bindCodePath := filepath.Join(filepath.Dir(deviceIDPath), "bind-code")
+	bindCodePath := getBindCodePath()
 
 	// Try to load existing device_id and bind_code
 	if data, err := os.ReadFile(deviceIDPath); err == nil {
@@ -62,9 +74,12 @@ func loadOrCreateDeviceID(serverURL string) (string, string, error) {
 	// Generate bindCode for initial registration
 	bindCode := generateCode(6)
 
+	// Get the computer's hostname
+	deviceName := getDeviceName()
+
 	// Register with cloud - cloud will generate deviceID
 	resp, err := http.Post("http://"+serverURL+"/api/device/register", "application/json",
-		strings.NewReader(`{"bind_code":"`+bindCode+`","device_name":"Desktop Agent"}`))
+		strings.NewReader(fmt.Sprintf(`{"bind_code":"%s","device_name":"%s"}`, bindCode, deviceName)))
 	if err != nil {
 		return "", "", err
 	}
@@ -163,29 +178,20 @@ func main() {
 		log.Fatalf("Failed to load/create device ID: %v", err)
 	}
 
-	// 显示绑定信息
-	fmt.Println("==========================================")
-	fmt.Println("  请在 H5 页面输入以下绑定码:")
-	fmt.Println("==========================================")
-	fmt.Printf("  绑定码: %s\n", bindCode)
-	fmt.Println("==========================================")
-	fmt.Println("  首次绑定后，后续启动将自动重连")
-	fmt.Println("==========================================")
-
-	// 检查是否需要等待绑定（仅首次启动需要）
-	needsBind := false
-	if data, err := os.ReadFile(getDeviceIDPath()); err != nil || len(strings.TrimSpace(string(data))) == 0 {
-		needsBind = true
-	}
-
-	if needsBind {
-		// 首次启动，等待用户绑定
+	// 如果有绑定码，说明需要绑定
+	if bindCode != "" {
+		// 显示绑定信息
+		fmt.Println("==========================================")
+		fmt.Println("  请在 H5 页面输入以下绑定码:")
+		fmt.Println("==========================================")
+		fmt.Printf("  绑定码: %s\n", bindCode)
+		fmt.Println("==========================================")
 		fmt.Println("\n请在 H5 页面输入绑定码后按回车继续...")
 		var input string
 		fmt.Scanln(&input)
 	} else {
-		// 重连，直接继续
-		fmt.Println("\n自动重连中...")
+		// 已绑定，直接重连
+		fmt.Println("设备已绑定，自动重连中...")
 	}
 
 	// WebSocket 连接
@@ -194,8 +200,22 @@ func main() {
 		log.Fatalf("Failed to connect: %v", err)
 	}
 
+	// 更新设备名称（如果与当前主机名不同）
+	deviceName := getDeviceName()
+	go func() {
+		updateData := fmt.Sprintf(`{"device_id":"%s","device_name":"%s"}`, deviceID, deviceName)
+		resp, err := http.Post("http://"+*serverURL+"/api/device/update", "application/json", strings.NewReader(updateData))
+		if err == nil {
+			defer resp.Body.Close()
+		}
+	}()
+
 	// 创建 tmux 会话
 	sessionName := fmt.Sprintf("claude-%s", deviceID[:6])
+
+	// 获取当前工作目录作为项目路径
+	cwd, _ := os.Getwd()
+	projectPath := cwd
 
 	// 检查 tmux session 是否已存在
 	cmd := exec.Command("tmux", "has-session", "-t", sessionName)
@@ -206,7 +226,19 @@ func main() {
 		// session 已存在，发送 Ctrl+C 停止当前，然后发送继续命令
 		exec.Command("tmux", "send-keys", "-t", sessionName, "C-c").Run()
 		time.Sleep(300 * time.Millisecond)
-		exec.Command("tmux", "send-keys", "-t", sessionName, "env", "-u", "CLAUDECODE", "claude", "-c", "--dangerously-skip-permissions", "C-m").Run()
+		exec.Command("tmux", "send-keys", "-t", sessionName, "env", "-u", "CLAUDECODE", "claude", "-c", "--dangerously-skip-permissions", "\r").Run()
+	}
+
+	// 向服务器注册 session
+	sessionJSON := fmt.Sprintf(`{"device_id":"%s","session_name":"%s","project_path":"%s"}`, deviceID, sessionName, projectPath)
+	resp, err := http.Post("http://"+*serverURL+"/api/sessions", "application/json", strings.NewReader(sessionJSON))
+	if err == nil {
+		defer resp.Body.Close()
+		var result map[string]interface{}
+		json.NewDecoder(resp.Body).Decode(&result)
+		if sessionID, ok := result["session_id"].(float64); ok {
+			log.Printf("Session registered: %d, name: %s", int(sessionID), sessionName)
+		}
 	}
 
 	// 捕获终端输出并发送到 H5
