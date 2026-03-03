@@ -53,9 +53,9 @@ func main() {
 
 	// Initialize handlers
 	deviceHandler := handler.NewDeviceHandler(deviceService)
-	wsHandler := handler.NewWSHubHandler(hub)
 	authService := service.NewAuthService(database)
 	authHandler := handler.NewAuthHandler(authService)
+	wsHandler := handler.NewWSHubHandler(hub, deviceService)
 
 	// Routes
 	mux := http.NewServeMux()
@@ -70,8 +70,11 @@ func main() {
 	mux.HandleFunc("/api/device/bind-agent", deviceHandler.BindAgent)
 	mux.HandleFunc("/api/device/list", deviceHandler.ListDevices)
 	mux.HandleFunc("/api/device/check", deviceHandler.CheckDevice)
+	mux.HandleFunc("/api/device/update", deviceHandler.UpdateDevice)
+	mux.HandleFunc("/api/device/delete", deviceHandler.DeleteDevice)
 	mux.HandleFunc("/api/devices", deviceHandler.GetUserDevices)
 	mux.HandleFunc("/api/devices/sessions", deviceHandler.GetDeviceSessions)
+	mux.HandleFunc("/api/sessions", deviceHandler.CreateSession)
 
 	// WebSocket
 	mux.HandleFunc("/ws", wsHandler.HandleConnection)

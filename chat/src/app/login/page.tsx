@@ -37,7 +37,7 @@ export default function LoginPage() {
       localStorage.setItem('email', data.email);
 
       router.push('/devices');
-    } catch (err) {
+    } catch {
       setError('网络错误');
     }
   };

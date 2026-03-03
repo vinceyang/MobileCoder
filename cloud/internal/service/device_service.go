@@ -205,12 +205,18 @@ func (s *DeviceService) ListAllDevices() ([]Device, error) {
 
 	var result []Device
 	for _, d := range devices {
+		// Parse time - Supabase stores as "2026-02-25T18:03:16" without timezone
+		loc := time.FixedZone("UTC+8", 8*3600)
+		parsedTime, _ := time.ParseInLocation("2006-01-02T15:04:05", d.BindCodeExp, loc)
+
 		result = append(result, Device{
-			ID:         d.ID,
-			UserID:     d.UserID,
-			DeviceID:   d.DeviceID,
-			DeviceName: d.DeviceName,
-			Status:     d.Status,
+			ID:          d.ID,
+			UserID:      d.UserID,
+			DeviceID:    d.DeviceID,
+			DeviceName:  d.DeviceName,
+			BindCode:    d.BindCode,
+			BindCodeExp: parsedTime,
+			Status:      d.Status,
 		})
 	}
 	return result, nil
@@ -317,4 +323,35 @@ func (s *DeviceService) GetDeviceSessions(deviceID string) ([]Session, error) {
 		})
 	}
 	return result, nil
+}
+
+// CreateSession 创建设备的 Session
+func (s *DeviceService) CreateSession(deviceID, sessionName, projectPath string) (*Session, error) {
+	session, err := s.db.CreateSession(deviceID, sessionName, projectPath)
+	if err != nil {
+		return nil, err
+	}
+
+	return &Session{
+		ID:          session.ID,
+		DeviceID:    session.DeviceID,
+		SessionName: session.SessionName,
+		ProjectPath: session.ProjectPath,
+		Status:      session.Status,
+	}, nil
+}
+
+// UpdateSessionStatus updates session status when agent disconnects
+func (s *DeviceService) UpdateSessionStatus(deviceID, status string) error {
+	return s.db.UpdateSessionStatus(deviceID, status)
+}
+
+// UpdateDeviceName updates the device name
+func (s *DeviceService) UpdateDeviceName(deviceID, deviceName string) error {
+	return s.db.UpdateDeviceName(deviceID, deviceName)
+}
+
+// DeleteDevice deletes a device
+func (s *DeviceService) DeleteDevice(deviceID string) error {
+	return s.db.DeleteDevice(deviceID)
 }

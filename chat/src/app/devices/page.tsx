@@ -4,10 +4,10 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
 interface Device {
-  id: number;
-  device_id: string;
-  device_name: string;
-  status: string;
+  ID: number;
+  DeviceID: string;
+  DeviceName: string;
+  Status: string;
 }
 
 export default function DevicesPage() {
@@ -29,14 +29,18 @@ export default function DevicesPage() {
     const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
     const token = localStorage.getItem('token') || '';
 
+    console.log('Fetching devices:', { API_URL, token });
+
     try {
       const res = await fetch(`${API_URL}/api/devices`, {
         headers: { 'Authorization': token },
       });
+      console.log('Devices response status:', res.status);
       const data = await res.json();
+      console.log('Devices data:', data);
       setDevices(data.devices || []);
     } catch (err) {
-      console.error(err);
+      console.error('Fetch devices error:', err);
     }
     setLoading(false);
   };
@@ -53,34 +57,45 @@ export default function DevicesPage() {
       <div className="max-w-2xl mx-auto">
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-2xl text-white">我的设备</h1>
-          <button onClick={handleLogout} className="text-gray-400 hover:text-white">
-            退出登录
-          </button>
+          <div className="space-x-4">
+            <button onClick={() => router.push('/add-device')} className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
+              添加设备
+            </button>
+            <button onClick={handleLogout} className="text-gray-400 hover:text-white">
+              退出登录
+            </button>
+          </div>
         </div>
 
         {devices.length === 0 ? (
-          <div className="text-gray-400 text-center mt-8">
-            暂无设备，请在 Agent 中启动并绑定
+          <div className="text-center mt-8">
+            <p className="text-gray-400 mb-4">暂无设备</p>
+            <button onClick={() => router.push('/add-device')} className="bg-blue-600 text-white px-6 py-3 rounded hover:bg-blue-700">
+              立即添加设备
+            </button>
           </div>
         ) : (
           <div className="space-y-4">
-            {devices.map((device) => (
-              <div
-                key={device.id}
-                className="bg-gray-800 p-4 rounded-lg cursor-pointer hover:bg-gray-700"
-                onClick={() => router.push(`/devices/${device.device_id}`)}
-              >
-                <div className="flex justify-between items-center">
-                  <div>
-                    <h3 className="text-white text-lg">{device.device_name}</h3>
-                    <p className="text-gray-400 text-sm">{device.device_id}</p>
+            {devices.map((device) => {
+              console.log('Rendering device:', device);
+              return (
+                <div
+                  key={device.ID}
+                  className="bg-gray-800 p-4 rounded-lg cursor-pointer hover:bg-gray-700"
+                  onClick={() => router.push(`/devices/${device.DeviceID}`)}
+                >
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <h3 className="text-white text-lg">{device.DeviceName || '未命名'}</h3>
+                      <p className="text-gray-400 text-sm">{device.DeviceID}</p>
+                    </div>
+                    <span className={`px-3 py-1 rounded ${device.Status === 'online' ? 'bg-green-600' : 'bg-gray-600'}`}>
+                      {device.Status === 'online' ? '在线' : '离线'}
+                    </span>
                   </div>
-                  <span className={`px-3 py-1 rounded ${device.status === 'online' ? 'bg-green-600' : 'bg-gray-600'}`}>
-                    {device.status === 'online' ? '在线' : '离线'}
-                  </span>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>

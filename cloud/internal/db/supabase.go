@@ -198,6 +198,15 @@ func (s *SupabaseDB) CreateSession(deviceID, sessionName, projectPath string) (*
 	return &sessions[0], nil
 }
 
+// UpdateSessionStatus updates session status (e.g., to 'inactive' when agent disconnects)
+func (s *SupabaseDB) UpdateSessionStatus(deviceID, status string) error {
+	body, _ := json.Marshal(map[string]string{
+		"status": status,
+	})
+	_, err := s.do("PATCH", "/sessions?device_id=eq."+deviceID+"&status=eq.active", body)
+	return err
+}
+
 func (s *SupabaseDB) GetSessionsByDevice(deviceID string) ([]Session, error) {
 	resp, err := s.do("GET", "/sessions?device_id=eq."+deviceID, nil)
 	if err != nil {
@@ -207,14 +216,6 @@ func (s *SupabaseDB) GetSessionsByDevice(deviceID string) ([]Session, error) {
 	var sessions []Session
 	json.Unmarshal(resp, &sessions)
 	return sessions, nil
-}
-
-func (s *SupabaseDB) UpdateSessionStatus(sessionID int64, status string) error {
-	body, _ := json.Marshal(map[string]interface{}{
-		"status": status,
-	})
-	_, err := s.do("PATCH", "/sessions?id=eq."+fmt.Sprintf("%d", sessionID), body)
-	return err
 }
 
 func (s *SupabaseDB) CreateDevice(userID int64, deviceID, deviceName, bindCode string, bindCodeExp string) (*Device, error) {
@@ -326,6 +327,22 @@ func (s *SupabaseDB) ListAllDevices() ([]Device, error) {
 	var devices []Device
 	json.Unmarshal(resp, &devices)
 	return devices, nil
+}
+
+// UpdateDeviceName updates the device name
+func (s *SupabaseDB) UpdateDeviceName(deviceID, deviceName string) error {
+	data := map[string]string{
+		"device_name": deviceName,
+	}
+	body, _ := json.Marshal(data)
+	_, err := s.do("PATCH", "/devices?device_id=eq."+deviceID, body)
+	return err
+}
+
+// DeleteDevice deletes a device by device_id
+func (s *SupabaseDB) DeleteDevice(deviceID string) error {
+	_, err := s.do("DELETE", "/devices?device_id=eq."+deviceID, nil)
+	return err
 }
 
 // InitDB returns a simple DB wrapper that uses Supabase REST API

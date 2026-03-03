@@ -122,7 +122,9 @@ func (h *DeviceHandler) BindDevice(w http.ResponseWriter, r *http.Request) {
 			// 如果 token 无效，回退到简化版
 			device, err := h.deviceService.BindDeviceSimple(req.BindCode)
 			if err != nil {
-				http.Error(w, err.Error(), http.StatusBadRequest)
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusBadRequest)
+				json.NewEncoder(w).Encode(map[string]interface{}{"error": err.Error()})
 				return
 			}
 			w.Header().Set("Content-Type", "application/json")
@@ -137,7 +139,9 @@ func (h *DeviceHandler) BindDevice(w http.ResponseWriter, r *http.Request) {
 		// 绑定到指定用户
 		device, err := h.deviceService.BindDeviceToUser(req.BindCode, userID)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(map[string]interface{}{"error": err.Error()})
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
@@ -152,7 +156,9 @@ func (h *DeviceHandler) BindDevice(w http.ResponseWriter, r *http.Request) {
 	// 无 token，回退到简化版
 	device, err := h.deviceService.BindDeviceSimple(req.BindCode)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]interface{}{"error": err.Error()})
 		return
 	}
 
@@ -270,5 +276,113 @@ func (h *DeviceHandler) GetDeviceSessions(w http.ResponseWriter, r *http.Request
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"sessions": sessions,
+	})
+}
+
+// CreateSessionRequest represents a session creation request
+type CreateSessionRequest struct {
+	DeviceID    string `json:"device_id"`
+	SessionName string `json:"session_name"`
+	ProjectPath string `json:"project_path"`
+}
+
+// CreateSession 创建新 Session
+func (h *DeviceHandler) CreateSession(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "POST" {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var req CreateSessionRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	if req.DeviceID == "" || req.SessionName == "" {
+		http.Error(w, "device_id and session_name required", http.StatusBadRequest)
+		return
+	}
+
+	session, err := h.deviceService.CreateSession(req.DeviceID, req.SessionName, req.ProjectPath)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"session_id": session.ID,
+		"session_name": session.SessionName,
+		"status": session.Status,
+	})
+}
+
+type UpdateDeviceRequest struct {
+	DeviceID   string `json:"device_id"`
+	DeviceName string `json:"device_name"`
+}
+
+// UpdateDevice updates device info (like name)
+func (h *DeviceHandler) UpdateDevice(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "POST" && r.Method != "PUT" {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var req UpdateDeviceRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	if req.DeviceID == "" {
+		http.Error(w, "device_id required", http.StatusBadRequest)
+		return
+	}
+
+	err := h.deviceService.UpdateDeviceName(req.DeviceID, req.DeviceName)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{
+		"status": "ok",
+	})
+}
+
+type DeleteDeviceRequest struct {
+	DeviceID string `json:"device_id"`
+}
+
+// DeleteDevice deletes a device
+func (h *DeviceHandler) DeleteDevice(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "POST" && r.Method != "DELETE" {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var req DeleteDeviceRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	if req.DeviceID == "" {
+		http.Error(w, "device_id required", http.StatusBadRequest)
+		return
+	}
+
+	err := h.deviceService.DeleteDevice(req.DeviceID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{
+		"status": "ok",
 	})
 }
