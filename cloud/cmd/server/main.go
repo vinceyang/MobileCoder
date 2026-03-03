@@ -75,6 +75,7 @@ func main() {
 	mux.HandleFunc("/api/devices", deviceHandler.GetUserDevices)
 	mux.HandleFunc("/api/devices/sessions", deviceHandler.GetDeviceSessions)
 	mux.HandleFunc("/api/sessions", deviceHandler.CreateSession)
+	mux.HandleFunc("/api/sessions/delete", deviceHandler.DeleteSession)
 
 	// WebSocket
 	mux.HandleFunc("/ws", wsHandler.HandleConnection)

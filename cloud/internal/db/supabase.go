@@ -207,6 +207,12 @@ func (s *SupabaseDB) UpdateSessionStatus(deviceID, sessionName, status string) e
 	return err
 }
 
+// DeleteSession deletes a session by ID
+func (s *SupabaseDB) DeleteSession(sessionID int64) error {
+	_, err := s.do("DELETE", "/sessions?id=eq."+fmt.Sprintf("%d", sessionID), nil)
+	return err
+}
+
 // GetSessionByName finds an existing session by device_id and session_name
 func (s *SupabaseDB) GetSessionByName(deviceID, sessionName string) (*Session, error) {
 	resp, err := s.do("GET", "/sessions?device_id=eq."+deviceID+"&session_name=eq."+sessionName, nil)

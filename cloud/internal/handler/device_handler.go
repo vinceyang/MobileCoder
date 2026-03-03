@@ -318,6 +318,40 @@ func (h *DeviceHandler) CreateSession(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+type DeleteSessionRequest struct {
+	SessionID int64 `json:"session_id"`
+}
+
+// DeleteSession deletes a session
+func (h *DeviceHandler) DeleteSession(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "POST" && r.Method != "DELETE" {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var req DeleteSessionRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	if req.SessionID == 0 {
+		http.Error(w, "session_id required", http.StatusBadRequest)
+		return
+	}
+
+	err := h.deviceService.DeleteSession(req.SessionID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{
+		"status": "ok",
+	})
+}
+
 type UpdateDeviceRequest struct {
 	DeviceID   string `json:"device_id"`
 	DeviceName string `json:"device_name"`

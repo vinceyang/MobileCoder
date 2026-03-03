@@ -364,6 +364,11 @@ func (s *DeviceService) GetActiveSession(deviceID string) (*Session, error) {
 	}, nil
 }
 
+// DeleteSession deletes a session
+func (s *DeviceService) DeleteSession(sessionID int64) error {
+	return s.db.DeleteSession(sessionID)
+}
+
 // UpdateDeviceName updates the device name
 func (s *DeviceService) UpdateDeviceName(deviceID, deviceName string) error {
 	return s.db.UpdateDeviceName(deviceID, deviceName)
