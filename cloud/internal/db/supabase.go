@@ -198,13 +198,70 @@ func (s *SupabaseDB) CreateSession(deviceID, sessionName, projectPath string) (*
 	return &sessions[0], nil
 }
 
-// UpdateSessionStatus updates session status (e.g., to 'inactive' when agent disconnects)
-func (s *SupabaseDB) UpdateSessionStatus(deviceID, status string) error {
+// UpdateSessionStatus updates session status by device_id and session_name
+func (s *SupabaseDB) UpdateSessionStatus(deviceID, sessionName, status string) error {
 	body, _ := json.Marshal(map[string]string{
 		"status": status,
 	})
-	_, err := s.do("PATCH", "/sessions?device_id=eq."+deviceID+"&status=eq.active", body)
+	_, err := s.do("PATCH", "/sessions?device_id=eq."+deviceID+"&session_name=eq."+sessionName+"&status=eq.active", body)
 	return err
+}
+
+// GetSessionByName finds an existing session by device_id and session_name
+func (s *SupabaseDB) GetSessionByName(deviceID, sessionName string) (*Session, error) {
+	resp, err := s.do("GET", "/sessions?device_id=eq."+deviceID+"&session_name=eq."+sessionName, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var sessions []Session
+	json.Unmarshal(resp, &sessions)
+	if len(sessions) == 0 {
+		return nil, nil
+	}
+	return &sessions[0], nil
+}
+
+// GetActiveSession finds the active session for a device
+func (s *SupabaseDB) GetActiveSession(deviceID string) (*Session, error) {
+	resp, err := s.do("GET", "/sessions?device_id=eq."+deviceID+"&status=eq.active", nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var sessions []Session
+	json.Unmarshal(resp, &sessions)
+	if len(sessions) == 0 {
+		return nil, nil
+	}
+	return &sessions[0], nil
+}
+
+// CreateOrUpdateSession creates a new session or updates existing one
+func (s *SupabaseDB) CreateOrUpdateSession(deviceID, sessionName, projectPath string) (*Session, error) {
+	// First try to find existing session
+	existing, err := s.GetSessionByName(deviceID, sessionName)
+	if err != nil {
+		return nil, err
+	}
+
+	if existing != nil {
+		// Update existing session
+		body, _ := json.Marshal(map[string]interface{}{
+			"status":       "active",
+			"project_path": projectPath,
+		})
+		_, err := s.do("PATCH", "/sessions?id=eq."+fmt.Sprintf("%d", existing.ID), body)
+		if err != nil {
+			return nil, err
+		}
+		existing.Status = "active"
+		existing.ProjectPath = projectPath
+		return existing, nil
+	}
+
+	// Create new session
+	return s.CreateSession(deviceID, sessionName, projectPath)
 }
 
 func (s *SupabaseDB) GetSessionsByDevice(deviceID string) ([]Session, error) {

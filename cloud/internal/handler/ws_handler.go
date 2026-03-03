@@ -82,8 +82,12 @@ func (h *WSHubHandler) readPump(client *ws.Client) {
 
 		// If agent disconnects, update session status to inactive
 		if client.IsAgent {
-			log.Printf("Agent disconnected, updating session status to inactive for deviceID=%s", client.DeviceID)
-			h.deviceService.UpdateSessionStatus(client.DeviceID, "inactive")
+			// Get the active session and update its status
+			session, err := h.deviceService.GetActiveSession(client.DeviceID)
+			if err == nil && session != nil {
+				log.Printf("Agent disconnected, updating session status to inactive for deviceID=%s, session=%s", client.DeviceID, session.SessionName)
+				h.deviceService.UpdateSessionStatus(client.DeviceID, session.SessionName, "inactive")
+			}
 		}
 	}()
 

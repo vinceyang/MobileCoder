@@ -325,9 +325,9 @@ func (s *DeviceService) GetDeviceSessions(deviceID string) ([]Session, error) {
 	return result, nil
 }
 
-// CreateSession 创建设备的 Session
+// CreateSession 创建设备的 Session（如果已存在则更新）
 func (s *DeviceService) CreateSession(deviceID, sessionName, projectPath string) (*Session, error) {
-	session, err := s.db.CreateSession(deviceID, sessionName, projectPath)
+	session, err := s.db.CreateOrUpdateSession(deviceID, sessionName, projectPath)
 	if err != nil {
 		return nil, err
 	}
@@ -342,8 +342,26 @@ func (s *DeviceService) CreateSession(deviceID, sessionName, projectPath string)
 }
 
 // UpdateSessionStatus updates session status when agent disconnects
-func (s *DeviceService) UpdateSessionStatus(deviceID, status string) error {
-	return s.db.UpdateSessionStatus(deviceID, status)
+func (s *DeviceService) UpdateSessionStatus(deviceID, sessionName, status string) error {
+	return s.db.UpdateSessionStatus(deviceID, sessionName, status)
+}
+
+// GetActiveSession gets the active session for a device
+func (s *DeviceService) GetActiveSession(deviceID string) (*Session, error) {
+	session, err := s.db.GetActiveSession(deviceID)
+	if err != nil {
+		return nil, err
+	}
+	if session == nil {
+		return nil, nil
+	}
+	return &Session{
+		ID:          session.ID,
+		DeviceID:    session.DeviceID,
+		SessionName: session.SessionName,
+		ProjectPath: session.ProjectPath,
+		Status:      session.Status,
+	}, nil
 }
 
 // UpdateDeviceName updates the device name

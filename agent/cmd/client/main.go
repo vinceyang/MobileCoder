@@ -210,12 +210,19 @@ func main() {
 		}
 	}()
 
-	// 创建 tmux 会话
-	sessionName := fmt.Sprintf("claude-%s", deviceID[:6])
-
 	// 获取当前工作目录作为项目路径
 	cwd, _ := os.Getwd()
 	projectPath := cwd
+
+	// 创建 tmux 会话名，包含目录名以区分不同项目
+	dirName := filepath.Base(cwd)
+	if dirName == "" || dirName == "/" {
+		dirName = "root"
+	}
+	// 清理目录名，移除非法字符
+	dirName = strings.ReplaceAll(dirName, "/", "-")
+	dirName = strings.ReplaceAll(dirName, " ", "_")
+	sessionName := fmt.Sprintf("claude-%s-%s", deviceID[:6], dirName)
 
 	// 检查 tmux session 是否已存在
 	cmd := exec.Command("tmux", "has-session", "-t", sessionName)

@@ -11,6 +11,8 @@ RUN CGO_ENABLED=0 GOOS=linux go build -o server ./cmd/server
 # Stage 2: Build Chat (Node.js)
 FROM docker.io/library/node:20-bookworm AS builder-chat
 
+ARG NEXT_PUBLIC_API_URL=http://localhost:8080
+
 WORKDIR /app
 COPY chat/package.json chat/package-lock.json* ./
 RUN npm install
@@ -20,6 +22,7 @@ COPY chat/ .
 ENV GITHUB_PAGES=true
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NEXT_DEPLOYMENT_TYPE=docker
+ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
 RUN npm run build
 
 # Stage 3: Runtime

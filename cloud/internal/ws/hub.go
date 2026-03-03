@@ -14,11 +14,12 @@ type Message struct {
 }
 
 type Client struct {
-	Conn     *websocket.Conn
-	DeviceID string
-	UserID   int64
-	IsAgent  bool  // true for Desktop Agent, false for H5 viewer
-	Send     chan []byte
+	Conn        *websocket.Conn
+	DeviceID    string
+	UserID      int64
+	IsAgent     bool   // true for Desktop Agent, false for H5 viewer
+	SessionName string // current session name for agent
+	Send        chan []byte
 }
 
 type Hub struct {
