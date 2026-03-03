@@ -126,6 +126,8 @@ func (h *Hub) SendToAgents(deviceID string, message []byte) {
 					log.Printf("SendToAgents: sent to agent userID=%d", client.UserID)
 				default:
 				}
+				// Only send to the first agent to prevent duplicate messages
+				return
 			}
 		}
 	}
