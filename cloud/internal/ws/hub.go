@@ -76,8 +76,8 @@ func (h *Hub) Register(client *Client) {
 	h.register <- client
 }
 
-func (h *Hub) Unregister(deviceID string) {
-	h.unregister <- &Client{DeviceID: deviceID}
+func (h *Hub) Unregister(client *Client) {
+	h.unregister <- client
 }
 
 func (h *Hub) SendToDevice(deviceID string, message []byte) bool {

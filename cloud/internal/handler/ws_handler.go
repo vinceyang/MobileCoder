@@ -81,7 +81,7 @@ func (h *WSHubHandler) HandleConnection(w http.ResponseWriter, r *http.Request) 
 
 func (h *WSHubHandler) readPump(client *ws.Client) {
 	defer func() {
-		h.hub.Unregister(client.DeviceID)
+		h.hub.Unregister(client)
 		client.Conn.Close()
 
 		// If agent disconnects, update session status to inactive
