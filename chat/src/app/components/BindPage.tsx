@@ -3,11 +3,6 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 
-// 获取 API 地址 - 使用相对路径，通过 nginx 反向代理
-const getAPIUrl = () => {
-  return '';
-};
-
 // 获取服务器地址用于显示
 const getServerAddress = () => {
   if (typeof window === 'undefined') return 'localhost';
