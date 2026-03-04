@@ -31,12 +31,11 @@ export default function DeviceDetailPage() {
   }, [params.deviceId]);
 
   const fetchSessions = async (deviceId: string) => {
-    const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
     const token = localStorage.getItem('token') || '';
 
     console.log('Fetching sessions for device:', deviceId);
     try {
-      const res = await fetch(`${API_URL}/api/devices/sessions?device_id=${deviceId}`, {
+      const res = await fetch(`/api/devices/sessions?device_id=${deviceId}`, {
         headers: { 'Authorization': token },
       });
       console.log('Sessions response status:', res.status);
@@ -57,9 +56,8 @@ export default function DeviceDetailPage() {
   const connectSession = () => {
     // 跳转到终端页面
     localStorage.setItem('device_id', deviceId);
-    // 传递 API URL 和 device_id 作为查询参数
-    const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
-    router.push(`/terminal?url=${encodeURIComponent(API_URL)}&device_id=${deviceId}`);
+    // 只需要传递 device_id，API 使用相对路径
+    router.push(`/terminal?device_id=${deviceId}`);
   };
 
   if (loading) return <div className="text-white">加载中...</div>;

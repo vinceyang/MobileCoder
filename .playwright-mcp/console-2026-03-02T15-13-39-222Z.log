@@ -1,0 +1,29 @@
+[   15268ms] [ERROR] ./src/app/terminal/page.tsx:20:11
+Ecmascript file had an error
+  18 |     const deviceIdFromUrl = searchParams.get('device_id');
+  19 |     const deviceIdFromStorage = localStorage.getItem('device_id');
+> 20 |     const deviceIdFromStorage = deviceIdFromUrl || deviceIdFromStorage;
+     |           ^^^^^^^^^^^^^^^^^^^
+  21 |
+  22 |     if (!deviceIdFromStorage) {
+  23 |       router.push('/login');
+
+the name `deviceIdFromStorage` is defined multiple times
+
+Import traces:
+  Client Component Browser:
+    ./src/app/terminal/page.tsx [Client Component Browser]
+    ./src/app/terminal/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/app/terminal/page.tsx [Client Component SSR]
+    ./src/app/terminal/page.tsx [Server Component] @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_445d8acf._.js:2248
+[  324403ms] [ERROR] [Turbopack HMR] Expected module to match pattern: [project]/node_modules/entities/lib/maps/xml.json (json) @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_445d8acf._.js:2248
+[  324403ms] [ERROR] [Turbopack HMR] Expected module to match pattern: [project]/node_modules/entities/lib/maps/entities.json (json) @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_445d8acf._.js:2248
+[  324403ms] [ERROR] [Turbopack HMR] Expected module to match pattern: [project]/node_modules/entities/lib/maps/legacy.json (json) @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_445d8acf._.js:2248
+[  324403ms] [ERROR] [Turbopack HMR] Expected module to match pattern: [project]/node_modules/entities/lib/maps/decode.json (json) @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_445d8acf._.js:2248
+[  324403ms] [ERROR] [Turbopack HMR] Expected module to match pattern: [project]/node_modules/entities/lib/maps/xml.json (json) @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_445d8acf._.js:2248
+[  324403ms] [ERROR] [Turbopack HMR] Expected module to match pattern: [project]/node_modules/entities/lib/maps/entities.json (json) @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_445d8acf._.js:2248
+[  324403ms] [ERROR] [Turbopack HMR] Expected module to match pattern: [project]/node_modules/entities/lib/maps/legacy.json (json) @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_445d8acf._.js:2248
+[  324403ms] [ERROR] [Turbopack HMR] Expected module to match pattern: [project]/node_modules/entities/lib/maps/decode.json (json) @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_445d8acf._.js:2248
+[  324420ms] [WARNING] WebSocket connection to 'ws://localhost:8080/ws?device_id=87cb7f15e1e0437a&token=token_17_test1772460988806@example.com_1772460990' failed: WebSocket is closed before the connection is established. @ http://localhost:3000/_next/static/chunks/_1f140c55._.js?id=%255Bproject%255D%252Fsrc%252Fapp%252Fcomponents%252FTerminal.tsx+%255Bapp-client%255D+%2528ecmascript%2529:105

@@ -1,0 +1,4 @@
+[     354ms] [ERROR] WebSocket connection to 'ws://localhost:8080/ws' failed: Error during WebSocket handshake: Unexpected response code: 400 @ http://localhost:3000/_next/static/chunks/_137c8165._.js:40
+[     355ms] [ERROR] WebSocket error: Event @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_445d8acf._.js:2248
+[   25998ms] [ERROR] WebSocket connection to 'ws://localhost:8080/ws' failed: Error during WebSocket handshake: Unexpected response code: 400 @ http://localhost:3000/_next/static/chunks/_137c8165._.js?id=%255Bproject%255D%252Fsrc%252Fapp%252Fterminal%252Fpage.tsx+%255Bapp-client%255D+%2528ecmascript%2529:40
+[   25998ms] [ERROR] WebSocket error: Event @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_445d8acf._.js:2248

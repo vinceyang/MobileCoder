@@ -1,0 +1,150 @@
+[      93ms] [ERROR] ./src/app/terminal/page.tsx:26:11
+Ecmascript file had an error
+  24 |     // Get WebSocket URL from query params or use default
+  25 |     const apiUrl = searchParams.get('url') || 'http://localhost:8080';
+> 26 |     const deviceIdFromStorage = localStorage.getItem('device_id') || '';
+     |           ^^^^^^^^^^^^^^^^^^^
+  27 |     console.log('API URL:', apiUrl);
+  28 |     console.log('Device ID:', deviceIdFromStorage);
+  29 |
+
+the name `deviceIdFromStorage` is defined multiple times
+
+Import traces:
+  Client Component Browser:
+    ./src/app/terminal/page.tsx [Client Component Browser]
+    ./src/app/terminal/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/app/terminal/page.tsx [Client Component SSR]
+    ./src/app/terminal/page.tsx [Server Component] @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_445d8acf._.js:2248
+[     560ms] [ERROR] ./src/app/terminal/page.tsx:26:11
+Ecmascript file had an error
+  24 |     // Get WebSocket URL from query params or use default
+  25 |     const apiUrl = searchParams.get('url') || 'http://localhost:8080';
+> 26 |     const deviceIdFromStorage = localStorage.getItem('device_id') || '';
+     |           ^^^^^^^^^^^^^^^^^^^
+  27 |     console.log('API URL:', apiUrl);
+  28 |     console.log('Device ID:', deviceIdFromStorage);
+  29 |
+
+the name `deviceIdFromStorage` is defined multiple times
+
+Import traces:
+  Client Component Browser:
+    ./src/app/terminal/page.tsx [Client Component Browser]
+    ./src/app/terminal/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/app/terminal/page.tsx [Client Component SSR]
+    ./src/app/terminal/page.tsx [Server Component] @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_445d8acf._.js:2248
+[     594ms] [ERROR] ./src/app/terminal/page.tsx:26:11
+Ecmascript file had an error
+  24 |     // Get WebSocket URL from query params or use default
+  25 |     const apiUrl = searchParams.get('url') || 'http://localhost:8080';
+> 26 |     const deviceIdFromStorage = localStorage.getItem('device_id') || '';
+     |           ^^^^^^^^^^^^^^^^^^^
+  27 |     console.log('API URL:', apiUrl);
+  28 |     console.log('Device ID:', deviceIdFromStorage);
+  29 |
+
+the name `deviceIdFromStorage` is defined multiple times
+
+Import traces:
+  Client Component Browser:
+    ./src/app/terminal/page.tsx [Client Component Browser]
+    ./src/app/terminal/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/app/terminal/page.tsx [Client Component SSR]
+    ./src/app/terminal/page.tsx [Server Component] @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_445d8acf._.js:2248
+[     748ms] [ERROR] ./src/app/terminal/page.tsx:26:11
+Ecmascript file had an error
+  24 |     // Get WebSocket URL from query params or use default
+  25 |     const apiUrl = searchParams.get('url') || 'http://localhost:8080';
+> 26 |     const deviceIdFromStorage = localStorage.getItem('device_id') || '';
+     |           ^^^^^^^^^^^^^^^^^^^
+  27 |     console.log('API URL:', apiUrl);
+  28 |     console.log('Device ID:', deviceIdFromStorage);
+  29 |
+
+the name `deviceIdFromStorage` is defined multiple times
+
+Import traces:
+  Client Component Browser:
+    ./src/app/terminal/page.tsx [Client Component Browser]
+    ./src/app/terminal/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/app/terminal/page.tsx [Client Component SSR]
+    ./src/app/terminal/page.tsx [Server Component] @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_445d8acf._.js:2248
+[     751ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/terminal?url=http://localhost:8080:0
+[     866ms] Error: ./src/app/terminal/page.tsx:26:11
+Ecmascript file had an error
+  24 |     // Get WebSocket URL from query params or use default
+  25 |     const apiUrl = searchParams.get('url') || 'http://localhost:8080';
+> 26 |     const deviceIdFromStorage = localStorage.getItem('device_id') || '';
+     |           ^^^^^^^^^^^^^^^^^^^
+  27 |     console.log('API URL:', apiUrl);
+  28 |     console.log('Device ID:', deviceIdFromStorage);
+  29 |
+
+the name `deviceIdFromStorage` is defined multiple times
+
+Import traces:
+  Client Component Browser:
+    ./src/app/terminal/page.tsx [Client Component Browser]
+    ./src/app/terminal/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/app/terminal/page.tsx [Client Component SSR]
+    ./src/app/terminal/page.tsx [Server Component]
+
+
+    at <unknown> (Error: ./src/app/terminal/page.tsx:26:11)
+    at Object.getCompilationErrors (file:///Users/yangxq/Code/mobile-coder-user-system/chat/node_modules/next/dist/server/dev/hot-reloader-turbopack.js:760:59)
+    at DevBundlerService.getCompilationError (file:///Users/yangxq/Code/mobile-coder-user-system/chat/node_modules/next/dist/server/lib/dev-bundler-service.js:39:55)
+    at DevServer.getCompilationError (file:///Users/yangxq/Code/mobile-coder-user-system/chat/node_modules/next/dist/server/dev/next-dev-server.js:686:42)
+    at DevServer.findPageComponents (file:///Users/yangxq/Code/mobile-coder-user-system/chat/node_modules/next/dist/server/dev/next-dev-server.js:656:43)
+    at async DevServer.renderErrorToResponseImpl (file:///Users/yangxq/Code/mobile-coder-user-system/chat/node_modules/next/dist/server/base-server.js:2614:26)
+[     862ms] [ERROR] ./src/app/terminal/page.tsx:26:11
+Ecmascript file had an error
+  24 |     // Get WebSocket URL from query params or use default
+  25 |     const apiUrl = searchParams.get('url') || 'http://localhost:8080';
+> 26 |     const deviceIdFromStorage = localStorage.getItem('device_id') || '';
+     |           ^^^^^^^^^^^^^^^^^^^
+  27 |     console.log('API URL:', apiUrl);
+  28 |     console.log('Device ID:', deviceIdFromStorage);
+  29 |
+
+the name `deviceIdFromStorage` is defined multiple times
+
+Import traces:
+  Client Component Browser:
+    ./src/app/terminal/page.tsx [Client Component Browser]
+    ./src/app/terminal/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/app/terminal/page.tsx [Client Component SSR]
+    ./src/app/terminal/page.tsx [Server Component] @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_ad6392d3._.js:1680
+[     871ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:3000/favicon.ico:0
+[     918ms] [ERROR] ./src/app/terminal/page.tsx:26:11
+Ecmascript file had an error
+  24 |     // Get WebSocket URL from query params or use default
+  25 |     const apiUrl = searchParams.get('url') || 'http://localhost:8080';
+> 26 |     const deviceIdFromStorage = localStorage.getItem('device_id') || '';
+     |           ^^^^^^^^^^^^^^^^^^^
+  27 |     console.log('API URL:', apiUrl);
+  28 |     console.log('Device ID:', deviceIdFromStorage);
+  29 |
+
+the name `deviceIdFromStorage` is defined multiple times
+
+Import traces:
+  Client Component Browser:
+    ./src/app/terminal/page.tsx [Client Component Browser]
+    ./src/app/terminal/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/app/terminal/page.tsx [Client Component SSR]
+    ./src/app/terminal/page.tsx [Server Component] @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_ad6392d3._.js:1680

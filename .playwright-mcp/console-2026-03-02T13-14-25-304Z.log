@@ -1,0 +1,14 @@
+[    9983ms] [ERROR] Failed to load resource: the server responded with a status of 400 (Bad Request) @ http://localhost:8080/api/device/bind:0
+[    9984ms] [ERROR] Fetch error: SyntaxError: Unexpected token 'd', "device not found
+" is not valid JSON @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_445d8acf._.js:2248
+[  207670ms] [ERROR] Failed to load resource: the server responded with a status of 400 (Bad Request) @ http://localhost:8080/api/device/bind:0
+[  207671ms] [ERROR] Failed to parse JSON: SyntaxError: Unexpected token 'd', "device not found
+" is not valid JSON
+    at JSON.parse (<anonymous>)
+    at handleBind (http://localhost:3000/_next/static/chunks/_45d37edb._.js:73:29) @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_445d8acf._.js:2248
+[  273484ms] [ERROR] Failed to load resource: the server responded with a status of 400 (Bad Request) @ http://localhost:8080/api/device/bind:0
+[  273484ms] [ERROR] Failed to parse JSON: SyntaxError: Unexpected token 'd', "device not found
+" is not valid JSON
+    at JSON.parse (<anonymous>)
+    at handleBind (http://localhost:3000/_next/static/chunks/_45d37edb._.js:73:29) @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_445d8acf._.js:2248
+[ 1430683ms] [ERROR] WebSocket connection to 'ws://localhost:3000/_next/webpack-hmr' failed:  @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_client_20b209c9._.js:5442

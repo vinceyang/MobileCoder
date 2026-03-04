@@ -30,17 +30,15 @@ export default function AddDevicePage() {
     setLoading(true);
     setError('');
 
-    const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
-
-    console.log('Binding device with:', { API_URL, token, bindCode });
+    console.log('Binding device with bindCode:', bindCode);
 
     // Create an AbortController with timeout
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 10000);
 
     try {
-      console.log('Making bind request to:', `${API_URL}/api/device/bind`);
-      const res = await fetch(`${API_URL}/api/device/bind`, {
+      console.log('Making bind request to: /api/device/bind');
+      const res = await fetch('/api/device/bind', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

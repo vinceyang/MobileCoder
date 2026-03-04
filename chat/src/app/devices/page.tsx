@@ -26,13 +26,12 @@ export default function DevicesPage() {
   }, []);
 
   const fetchDevices = async () => {
-    const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
     const token = localStorage.getItem('token') || '';
 
-    console.log('Fetching devices:', { API_URL, token });
+    console.log('Fetching devices with token:', token);
 
     try {
-      const res = await fetch(`${API_URL}/api/devices`, {
+      const res = await fetch('/api/devices', {
         headers: { 'Authorization': token },
       });
       console.log('Devices response status:', res.status);

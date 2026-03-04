@@ -14,11 +14,10 @@ export default function LoginPage() {
     e.preventDefault();
     setError('');
 
-    const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
     const endpoint = isRegister ? '/api/auth/register' : '/api/auth/login';
 
     try {
-      const res = await fetch(`${API_URL}${endpoint}`, {
+      const res = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),

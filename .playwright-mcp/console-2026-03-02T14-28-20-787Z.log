@@ -1,0 +1,22 @@
+[     304ms] [ERROR] WebSocket connection to 'ws://localhost:8080/ws' failed: Error during WebSocket handshake: Unexpected response code: 400 @ http://localhost:3000/_next/static/chunks/_137c8165._.js:42
+[     304ms] [ERROR] WebSocket error: Event @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_445d8acf._.js:2248
+[   96017ms] [ERROR] ./src/app/terminal/page.tsx:26:11
+Ecmascript file had an error
+  24 |     // Get WebSocket URL from query params or use default
+  25 |     const apiUrl = searchParams.get('url') || 'http://localhost:8080';
+> 26 |     const deviceIdFromStorage = localStorage.getItem('device_id') || '';
+     |           ^^^^^^^^^^^^^^^^^^^
+  27 |     console.log('API URL:', apiUrl);
+  28 |     console.log('Device ID:', deviceIdFromStorage);
+  29 |
+
+the name `deviceIdFromStorage` is defined multiple times
+
+Import traces:
+  Client Component Browser:
+    ./src/app/terminal/page.tsx [Client Component Browser]
+    ./src/app/terminal/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/app/terminal/page.tsx [Client Component SSR]
+    ./src/app/terminal/page.tsx [Server Component] @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_445d8acf._.js:2248

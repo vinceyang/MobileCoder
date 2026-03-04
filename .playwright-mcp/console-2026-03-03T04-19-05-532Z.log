@@ -1,0 +1,2 @@
+[    8554ms] [ERROR] Access to fetch at 'http://localhost:8080/api/auth/login' from origin 'http://121.41.69.142:3001' has been blocked by CORS policy: The request client is not a secure context and the resource is in more-private address space `loopback`. @ http://121.41.69.142:3001/login:0
+[    8554ms] [ERROR] Failed to load resource: net::ERR_FAILED @ http://localhost:8080/api/auth/login:0

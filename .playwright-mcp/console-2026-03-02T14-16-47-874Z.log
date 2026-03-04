@@ -1,0 +1,3 @@
+[   63175ms] [ERROR] Each child in a list should have a unique "key" prop.%s%s See https://react.dev/link/warning-keys for more information. 
+
+Check the render method of `DeviceDetailPage`.  @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_445d8acf._.js:2248

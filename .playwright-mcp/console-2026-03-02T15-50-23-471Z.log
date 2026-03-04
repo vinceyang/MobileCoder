@@ -1,0 +1,1 @@
+[     247ms] [WARNING] WebSocket connection to 'ws://localhost:8080/ws?device_id=0613d8f5add6f170&token=token_19_xqy1522@foxmail.com_1772465667' failed: WebSocket is closed before the connection is established. @ http://localhost:3000/_next/static/chunks/_1f140c55._.js:107
