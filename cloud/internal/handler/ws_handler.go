@@ -55,10 +55,14 @@ func (h *WSHubHandler) HandleConnection(w http.ResponseWriter, r *http.Request) 
 
 	log.Printf("WS: connected device_id=%s, userID=%d", deviceID, userID)
 
+	// If no token, it's a Desktop Agent; if token exists, it's an H5 viewer
+	isAgent := (token == "")
+
 	client := &ws.Client{
 		Conn:     conn,
 		DeviceID: deviceID,
 		UserID:   userID,
+		IsAgent:  isAgent,
 		Send:     make(chan []byte, 256),
 	}
 
