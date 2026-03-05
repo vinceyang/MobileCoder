@@ -10,19 +10,21 @@ import (
 )
 
 type WSClient struct {
-	conn      *websocket.Conn
-	deviceID  string
-	serverURL string
-	mu        sync.Mutex
-	onMessage func(msg []byte)
-	reconnect bool
+	conn       *websocket.Conn
+	deviceID   string
+	sessionName string
+	serverURL  string
+	mu         sync.Mutex
+	onMessage  func(msg []byte)
+	reconnect  bool
 }
 
-func NewWSClient(serverURL, deviceID string) (*WSClient, error) {
+func NewWSClient(serverURL, deviceID, sessionName string) (*WSClient, error) {
 	ws := &WSClient{
-		serverURL: serverURL,
-		deviceID:  deviceID,
-		reconnect: true,
+		serverURL:   serverURL,
+		deviceID:    deviceID,
+		sessionName: sessionName,
+		reconnect:   true,
 	}
 	if err := ws.connect(); err != nil {
 		return nil, err
@@ -31,7 +33,11 @@ func NewWSClient(serverURL, deviceID string) (*WSClient, error) {
 }
 
 func (c *WSClient) connect() error {
-	conn, _, err := websocket.DefaultDialer.Dial(c.serverURL+"?device_id="+c.deviceID, nil)
+	url := c.serverURL + "?device_id=" + c.deviceID
+	if c.sessionName != "" {
+		url += "&session_name=" + c.sessionName
+	}
+	conn, _, err := websocket.DefaultDialer.Dial(url, nil)
 	if err != nil {
 		return err
 	}

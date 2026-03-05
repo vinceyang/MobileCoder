@@ -195,7 +195,7 @@ func main() {
 	}
 
 	// WebSocket 连接
-	ws, err := client.NewWSClient("ws://"+*serverURL+"/ws", deviceID)
+	ws, err := client.NewWSClient("ws://"+*serverURL+"/ws", deviceID, sessionName)
 	if err != nil {
 		log.Fatalf("Failed to connect: %v", err)
 	}
