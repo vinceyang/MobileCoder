@@ -28,8 +28,8 @@ RUN npm run build
 # Stage 3: Runtime
 FROM docker.io/library/node:20-bookworm AS runner
 
-# Install Go runtime and nginx
-RUN apt-get update && apt-get install -y ca-certificates wget nginx
+# Install Go runtime for cloud service
+RUN apt-get update && apt-get install -y ca-certificates wget
 
 WORKDIR /app
 
@@ -41,18 +41,13 @@ COPY --from=builder-chat /app/public ./public
 COPY --from=builder-chat /app/.next/standalone ./chat
 COPY --from=builder-chat /app/.next/static ./chat/.next/static
 
-# Copy nginx config (with /api routing to Go, / to Next.js)
-COPY deploy/nginx.conf /etc/nginx/nginx.conf
-
 # Create startup script
 RUN echo '#!/bin/sh\n\
 echo "Starting Cloud service..."\n\
 ./server &\n\
 echo "Starting Chat service..."\n\
-cd chat && node server.js &\n\
-echo "Starting Nginx..."\n\
-nginx -g "daemon off;"\n' > /start.sh && chmod +x /start.sh
+cd chat && node server.js\n' > /start.sh && chmod +x /start.sh
 
-EXPOSE 80
+EXPOSE 8080 3000
 
 CMD ["/start.sh"]

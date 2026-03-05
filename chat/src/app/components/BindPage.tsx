@@ -3,11 +3,16 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 
+// 获取 API 地址 - 支持手机端访问
+const getAPIUrl = () => {
+  if (typeof window === 'undefined') return 'http://localhost:8080';
+  return process.env.NEXT_PUBLIC_API_URL || `${window.location.protocol}//${window.location.hostname}:8080`;
+};
+
 // 获取服务器地址用于显示
 const getServerAddress = () => {
-  if (typeof window === 'undefined') return 'localhost';
-  // 从当前 URL 获取 host
-  return window.location.host;
+  if (typeof window === 'undefined') return 'localhost:8080';
+  return process.env.NEXT_PUBLIC_API_URL?.replace(/^https?:\/\//, '') || `${window.location.hostname}:8080`;
 };
 
 export default function BindPage({ onBind }: { onBind: (deviceId: string) => void }) {
@@ -26,8 +31,9 @@ export default function BindPage({ onBind }: { onBind: (deviceId: string) => voi
     setLoading(true);
     setError('');
     try {
-      // 使用相对路径
-      const res = await fetch('/api/device/bind', {
+      const API_URL = getAPIUrl();
+      // 简化版：无需 token，直接绑定
+      const res = await fetch(`${API_URL}/api/device/bind`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

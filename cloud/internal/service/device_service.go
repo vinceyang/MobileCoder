@@ -301,7 +301,6 @@ func (s *DeviceService) GetDeviceByDeviceID(deviceID string) (*Device, error) {
 		UserID:     device.UserID,
 		DeviceID:   device.DeviceID,
 		DeviceName: device.DeviceName,
-		BindCode:   device.BindCode,
 		Status:     device.Status,
 	}, nil
 }

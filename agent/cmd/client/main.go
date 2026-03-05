@@ -65,14 +65,6 @@ func loadOrCreateDeviceID(serverURL string) (string, string, error) {
 					if data, err := os.ReadFile(bindCodePath); err == nil {
 						bindCode = strings.TrimSpace(string(data))
 					}
-					// If device is already bound (no bind_code in response), clear local bind_code file
-					if bindCode != "" {
-						if bindCodeResp, ok := result["bind_code"].(string); !ok || bindCodeResp == "" {
-							// Device is already bound, clear the bind_code file
-							os.WriteFile(bindCodePath, []byte(""), 0644)
-							bindCode = ""
-						}
-					}
 					return deviceID, bindCode, nil
 				}
 			}
@@ -180,12 +172,6 @@ func main() {
 	serverURL := flag.String("server", "localhost:8080", "Cloud server URL")
 	flag.Parse()
 
-	// 确保 PATH 包含 /usr/local/bin (tmux 可能安装在那里)
-	currentPath := os.Getenv("PATH")
-	if !strings.Contains(currentPath, "/usr/local/bin") {
-		os.Setenv("PATH", currentPath + ":/usr/local/bin")
-	}
-
 	// 使用 device_id 持久化
 	deviceID, bindCode, err := loadOrCreateDeviceID(*serverURL)
 	if err != nil {
@@ -228,17 +214,10 @@ func main() {
 	cwd, _ := os.Getwd()
 	projectPath := cwd
 
-	// 创建 tmux 会话名，包含目录名以区分不同项目
-	dirName := filepath.Base(cwd)
-	if dirName == "" || dirName == "/" {
-		dirName = "root"
-	}
-	// 清理目录名，移除非法字符
-	dirName = strings.ReplaceAll(dirName, "/", "-")
-	dirName = strings.ReplaceAll(dirName, " ", "_")
-	sessionName := fmt.Sprintf("claude-%s-%s", deviceID[:6], dirName)
+	// 使用固定的 sessionName，不包含目录名，避免同一设备多个 session
+	sessionName := fmt.Sprintf("claude-%s", deviceID[:8])
 
-// Check tmux session
+	// 检查 tmux session 是否已存在
 	cmd := exec.Command("tmux", "has-session", "-t", sessionName)
 	if err := cmd.Run(); err != nil {
 		// 创建新的 tmux session 并在其中运行 claude（移除 CLAUDECODE 环境变量）

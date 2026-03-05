@@ -14,12 +14,12 @@ interface KeyButton {
   description?: string;
 }
 
-// 获取 WebSocket 地址 - 使用当前页面地址，nginx 会代理 WebSocket
+// 获取 WebSocket 地址 - 支持手机端访问
 const getWSUrl = (deviceId: string, token: string) => {
-  if (typeof window === 'undefined') return `ws://localhost/ws?device_id=${deviceId}&token=${token}`;
+  if (typeof window === 'undefined') return `ws://localhost:8080/ws?device_id=${deviceId}&token=${token}`;
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-  // 使用当前 host（nginx 监听 80 端口）
-  return `${protocol}//${window.location.host}/ws?device_id=${deviceId}&token=${token}`;
+  const hostname = window.location.hostname;
+  return `${protocol}//${hostname}:8080/ws?device_id=${deviceId}&token=${token}`;
 };
 
 // 检测是否为移动端

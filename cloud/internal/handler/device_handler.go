@@ -227,9 +227,8 @@ func (h *DeviceHandler) CheckDevice(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
-		"valid":     true,
-		"status":    device.Status,
-		"bind_code": device.BindCode,
+		"valid":   true,
+		"status":  device.Status,
 	})
 }
 
