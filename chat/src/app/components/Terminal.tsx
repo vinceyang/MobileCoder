@@ -5,6 +5,7 @@ import AnsiToHtml from 'ansi-to-html';
 
 interface TerminalProps {
   deviceId: string;
+  sessionName?: string;
 }
 
 interface KeyButton {
@@ -14,18 +15,22 @@ interface KeyButton {
   description?: string;
 }
 
-// 获取 WebSocket 地址 - 支持手机端访问
-const getWSUrl = (deviceId: string, token: string) => {
-  if (typeof window === 'undefined') return `ws://localhost:8080/ws?device_id=${deviceId}&token=${token}`;
+// 获取 WebSocket 地址 - 支持 session 路由
+const getWSUrl = (deviceId: string, sessionName: string, token: string) => {
+  const params = new URLSearchParams({ device_id: deviceId, token });
+  if (sessionName) {
+    params.append('session_name', sessionName);
+  }
+  if (typeof window === 'undefined') return `ws://localhost:8080/ws?${params.toString()}`;
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
   const hostname = window.location.hostname;
-  return `${protocol}//${hostname}:8080/ws?device_id=${deviceId}&token=${token}`;
+  return `${protocol}//${hostname}:8080/ws?${params.toString()}`;
 };
 
 // 检测是否为移动端
 const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
 
-export default function Terminal({ deviceId }: TerminalProps) {
+export default function Terminal({ deviceId, sessionName }: TerminalProps) {
   const [output, setOutput] = useState('');
   const [input, setInput] = useState('');
   const [connected, setConnected] = useState(false);
@@ -35,6 +40,22 @@ export default function Terminal({ deviceId }: TerminalProps) {
   const wsRef = useRef<WebSocket | null>(null);
   const outputRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  // 从 URL 获取 session_name
+  const [urlSessionName, setUrlSessionName] = useState('');
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const s = params.get('session_name');
+      if (s) {
+        setUrlSessionName(s);
+        localStorage.setItem('session_name', s);
+      }
+    }
+  }, []);
+
+  // 优先使用 props，其次使用 URL 中的 session_name
+  const effectiveSessionName = sessionName || urlSessionName || localStorage.getItem('session_name') || '';
 
   // ANSI to HTML 转换器
   const ansiToHtml = useMemo(() => new AnsiToHtml({
@@ -67,7 +88,7 @@ export default function Terminal({ deviceId }: TerminalProps) {
 
   useEffect(() => {
     const token = localStorage.getItem('token') || 'viewer';
-    const wsUrl = getWSUrl(deviceId, token);
+    const wsUrl = getWSUrl(deviceId, effectiveSessionName, token);
     const ws = new WebSocket(wsUrl);
 
     ws.onopen = () => {

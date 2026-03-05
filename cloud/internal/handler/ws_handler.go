@@ -29,8 +29,9 @@ func NewWSHubHandler(hub *ws.Hub, deviceService *service.DeviceService) *WSHubHa
 func (h *WSHubHandler) HandleConnection(w http.ResponseWriter, r *http.Request) {
 	deviceID := r.URL.Query().Get("device_id")
 	token := r.URL.Query().Get("token")
+	sessionName := r.URL.Query().Get("session_name")
 
-	log.Printf("WS connection request: device_id=%s, token=%s", deviceID, token)
+	log.Printf("WS connection request: device_id=%s, token=%s, session_name=%s", deviceID, token, sessionName)
 
 	if deviceID == "" {
 		http.Error(w, "device_id required", http.StatusBadRequest)
@@ -53,17 +54,18 @@ func (h *WSHubHandler) HandleConnection(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	log.Printf("WS: connected device_id=%s, userID=%d", deviceID, userID)
+	log.Printf("WS: connected device_id=%s, userID=%d, session_name=%s", deviceID, userID, sessionName)
 
 	// If no token, it's a Desktop Agent; if token exists, it's an H5 viewer
 	isAgent := (token == "")
 
 	client := &ws.Client{
-		Conn:     conn,
-		DeviceID: deviceID,
-		UserID:   userID,
-		IsAgent:  isAgent,
-		Send:     make(chan []byte, 256),
+		Conn:        conn,
+		DeviceID:    deviceID,
+		UserID:      userID,
+		IsAgent:     isAgent,
+		SessionName: sessionName,
+		Send:        make(chan []byte, 256),
 	}
 
 	h.hub.Register(client)
@@ -110,11 +112,16 @@ func (h *WSHubHandler) readPump(client *ws.Client) {
 		// If client sends terminal_output, it's a Desktop Agent
 		if msgType == "terminal_output" {
 			client.IsAgent = true
+			// Store session name from agent
+			if client.SessionName != "" {
+				// Update sessionName for routing
+			}
 			// Broadcast terminal_output only to H5 viewers (not to agents)
-			h.hub.BroadcastToViewers(client.DeviceID, message)
+			h.hub.BroadcastToViewers(client.DeviceID, client.SessionName, message)
 		} else if msgType == "terminal_input" {
 			// terminal_input from H5 should only go to Desktop Agents
-			h.hub.SendToAgents(client.DeviceID, message)
+			// Use sessionName for routing if available
+			h.hub.SendToAgents(client.DeviceID, client.SessionName, message)
 		} else {
 			// Forward other messages to all clients
 			h.hub.BroadcastToDevice(client.DeviceID, message)

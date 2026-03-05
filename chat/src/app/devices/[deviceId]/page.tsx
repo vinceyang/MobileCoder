@@ -54,12 +54,13 @@ export default function DeviceDetailPage() {
     router.push('/login');
   };
 
-  const connectSession = () => {
+  const connectSession = (sessionName: string) => {
     // 跳转到终端页面
     localStorage.setItem('device_id', deviceId);
-    // 传递 API URL 和 device_id 作为查询参数
+    localStorage.setItem('session_name', sessionName);
+    // 传递 API URL、device_id 和 session_name
     const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
-    router.push(`/terminal?url=${encodeURIComponent(API_URL)}&device_id=${deviceId}`);
+    router.push(`/terminal?url=${encodeURIComponent(API_URL)}&device_id=${deviceId}&session_name=${encodeURIComponent(sessionName)}`);
   };
 
   if (loading) return <div className="text-white">加载中...</div>;
@@ -92,7 +93,7 @@ export default function DeviceDetailPage() {
               <div
                 key={session.ID}
                 className="bg-gray-800 p-4 rounded-lg cursor-pointer hover:bg-gray-700"
-                onClick={connectSession}
+                onClick={() => connectSession(session.SessionName)}
               >
                 <div className="flex justify-between items-center">
                   <div>

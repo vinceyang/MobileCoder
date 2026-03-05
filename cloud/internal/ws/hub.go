@@ -23,7 +23,7 @@ type Client struct {
 }
 
 type Hub struct {
-	clients          map[string]map[*Client]bool  // deviceID -> set of clients
+	clients          map[string]map[*Client]bool  // key can be deviceID or sessionName
 	lastOutput       map[string][]byte             // deviceID -> last terminal output
 	mu               sync.RWMutex
 	register         chan *Client
@@ -44,27 +44,37 @@ func (h *Hub) Run() {
 		select {
 		case client := <-h.register:
 			h.mu.Lock()
-			if h.clients[client.DeviceID] == nil {
-				h.clients[client.DeviceID] = make(map[*Client]bool)
+			// Use sessionName as key if available, otherwise use deviceID
+			key := client.DeviceID
+			if client.SessionName != "" {
+				key = client.SessionName
 			}
-			h.clients[client.DeviceID][client] = true
-			log.Printf("Hub: registered client, deviceID=%s, isAgent=%v, totalClients=%d",
-				client.DeviceID, client.IsAgent, len(h.clients[client.DeviceID]))
+			if h.clients[key] == nil {
+				h.clients[key] = make(map[*Client]bool)
+			}
+			h.clients[key][client] = true
+			log.Printf("Hub: registered client, key=%s, isAgent=%v, totalClients=%d",
+				key, client.IsAgent, len(h.clients[key]))
 			h.mu.Unlock()
 
 		case client := <-h.unregister:
 			h.mu.Lock()
-			if clients, ok := h.clients[client.DeviceID]; ok {
+			// Use sessionName as key if available, otherwise use deviceID
+			key := client.DeviceID
+			if client.SessionName != "" {
+				key = client.SessionName
+			}
+			if clients, ok := h.clients[key]; ok {
 				if _, exists := clients[client]; exists {
 					delete(clients, client)
 					close(client.Send)
-					log.Printf("Hub: unregistered client, deviceID=%s, isAgent=%v, remainingClients=%d",
-						client.DeviceID, client.IsAgent, len(clients))
+					log.Printf("Hub: unregistered client, key=%s, isAgent=%v, remainingClients=%d",
+						key, client.IsAgent, len(clients))
 				}
-				// 只在没有客户端（包括 Agent 和 Viewer）时才删除 deviceID
+				// 只在没有客户端时删除 key
 				if len(clients) == 0 {
-					delete(h.clients, client.DeviceID)
-					log.Printf("Hub: deviceID=%s has no clients, removed", client.DeviceID)
+					delete(h.clients, key)
+					log.Printf("Hub: key=%s has no clients, removed", key)
 				}
 			}
 			h.mu.Unlock()
@@ -111,15 +121,22 @@ func (h *Hub) BroadcastToUser(userID int64, message []byte) {
 	}
 }
 
-// BroadcastToDevice broadcasts message to all clients with the same device ID
-// SendToAgents sends message only to Desktop Agent clients (not H5 viewers)
-func (h *Hub) SendToAgents(deviceID string, message []byte) {
+// SendToAgents sends message only to Desktop Agent clients
+// Uses sessionName if provided, otherwise falls back to deviceID
+func (h *Hub) SendToAgents(deviceID string, sessionName string, message []byte) {
 	h.mu.RLock()
 	defer h.mu.RUnlock()
-	log.Printf("SendToAgents: looking for agents for deviceID=%s, total clients=%d", deviceID, len(h.clients[deviceID]))
-	if clients, ok := h.clients[deviceID]; ok {
+
+	// Use sessionName as key if available
+	key := deviceID
+	if sessionName != "" {
+		key = sessionName
+	}
+
+	log.Printf("SendToAgents: looking for agents for key=%s, total clients=%d", key, len(h.clients[key]))
+	if clients, ok := h.clients[key]; ok {
 		for client := range clients {
-			log.Printf("SendToAgents: client IsAgent=%v, deviceID=%s", client.IsAgent, client.DeviceID)
+			log.Printf("SendToAgents: client IsAgent=%v, deviceID=%s, sessionName=%s", client.IsAgent, client.DeviceID, client.SessionName)
 			if client.IsAgent {
 				select {
 				case client.Send <- message:
@@ -135,16 +152,23 @@ func (h *Hub) SendToAgents(deviceID string, message []byte) {
 
 // BroadcastToViewers sends message only to the latest H5 viewer (not Desktop Agents)
 // This prevents duplicate messages when multiple H5 pages are open
-func (h *Hub) BroadcastToViewers(deviceID string, message []byte) {
+// Uses sessionName if provided, otherwise falls back to deviceID
+func (h *Hub) BroadcastToViewers(deviceID string, sessionName string, message []byte) {
+	// Use sessionName as key if available
+	key := deviceID
+	if sessionName != "" {
+		key = sessionName
+	}
+
 	h.mu.Lock()
 	// Save last output for new viewers
-	h.lastOutput[deviceID] = make([]byte, len(message))
-	copy(h.lastOutput[deviceID], message)
+	h.lastOutput[key] = make([]byte, len(message))
+	copy(h.lastOutput[key], message)
 	h.mu.Unlock()
 
 	h.mu.RLock()
 	defer h.mu.RUnlock()
-	if clients, ok := h.clients[deviceID]; ok {
+	if clients, ok := h.clients[key]; ok {
 		// Find all H5 viewers and send to each
 		var viewers []*Client
 		for client := range clients {
@@ -152,7 +176,7 @@ func (h *Hub) BroadcastToViewers(deviceID string, message []byte) {
 				viewers = append(viewers, client)
 			}
 		}
-		log.Printf("BroadcastToViewers: deviceID=%s, viewerCount=%d, msgLen=%d", deviceID, len(viewers), len(message))
+		log.Printf("BroadcastToViewers: key=%s, viewerCount=%d, msgLen=%d", key, len(viewers), len(message))
 		// Send to each viewer
 		for _, viewer := range viewers {
 			select {
@@ -168,10 +192,15 @@ func (h *Hub) BroadcastToViewers(deviceID string, message []byte) {
 func (h *Hub) SendLastOutput(client *Client) {
 	h.mu.RLock()
 	defer h.mu.RUnlock()
-	if output, ok := h.lastOutput[client.DeviceID]; ok && len(output) > 0 {
+	// Use sessionName as key if available, otherwise use deviceID
+	key := client.DeviceID
+	if client.SessionName != "" {
+		key = client.SessionName
+	}
+	if output, ok := h.lastOutput[key]; ok && len(output) > 0 {
 		select {
 		case client.Send <- output:
-			log.Printf("SendLastOutput: sent to userID=%d, len=%d", client.UserID, len(output))
+			log.Printf("SendLastOutput: sent to userID=%d, len=%d, key=%s", client.UserID, len(output), key)
 		default:
 		}
 	}
