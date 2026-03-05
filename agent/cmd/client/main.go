@@ -206,7 +206,7 @@ func main() {
 	// 清理目录名，移除非法字符
 	dirName = strings.ReplaceAll(dirName, "/", "-")
 	dirName = strings.ReplaceAll(dirName, " ", "_")
-	sessionName := fmt.Sprintf("claude-%s-%s", deviceID[:8], dirName)
+	sessionName := fmt.Sprintf("claude-%s-%s", deviceID[:6], dirName)
 	log.Printf("Agent starting with sessionName=%s, deviceID=%s, dirName=%s", sessionName, deviceID, dirName)
 
 	// WebSocket 连接
