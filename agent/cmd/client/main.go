@@ -207,8 +207,10 @@ func main() {
 	dirName = strings.ReplaceAll(dirName, "/", "-")
 	dirName = strings.ReplaceAll(dirName, " ", "_")
 	sessionName := fmt.Sprintf("claude-%s-%s", deviceID[:8], dirName)
+	log.Printf("Agent starting with sessionName=%s, deviceID=%s, dirName=%s", sessionName, deviceID, dirName)
 
 	// WebSocket 连接
+	log.Printf("Connecting to WebSocket with sessionName=%s", sessionName)
 	ws, err := client.NewWSClient("ws://"+*serverURL+"/ws", deviceID, sessionName)
 	if err != nil {
 		log.Fatalf("Failed to connect: %v", err)

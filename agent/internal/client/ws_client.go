@@ -37,6 +37,7 @@ func (c *WSClient) connect() error {
 	if c.sessionName != "" {
 		url += "&session_name=" + c.sessionName
 	}
+	log.Printf("WebSocket connecting to: %s", url)
 	conn, _, err := websocket.DefaultDialer.Dial(url, nil)
 	if err != nil {
 		return err
