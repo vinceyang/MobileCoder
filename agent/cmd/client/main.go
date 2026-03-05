@@ -194,6 +194,20 @@ func main() {
 		fmt.Println("设备已绑定，自动重连中...")
 	}
 
+	// 获取当前工作目录作为项目路径
+	cwd, _ := os.Getwd()
+	projectPath := cwd
+
+	// 创建 tmux 会话名，包含目录名以区分不同项目
+	dirName := filepath.Base(cwd)
+	if dirName == "" || dirName == "/" {
+		dirName = "root"
+	}
+	// 清理目录名，移除非法字符
+	dirName = strings.ReplaceAll(dirName, "/", "-")
+	dirName = strings.ReplaceAll(dirName, " ", "_")
+	sessionName := fmt.Sprintf("claude-%s-%s", deviceID[:8], dirName)
+
 	// WebSocket 连接
 	ws, err := client.NewWSClient("ws://"+*serverURL+"/ws", deviceID, sessionName)
 	if err != nil {
@@ -209,24 +223,6 @@ func main() {
 			defer resp.Body.Close()
 		}
 	}()
-
-	// 获取当前工作目录作为项目路径
-	cwd, _ := os.Getwd()
-	projectPath := cwd
-
-	// 获取当前工作目录作为项目路径
-	cwd, _ := os.Getwd()
-	projectPath := cwd
-
-	// 创建 tmux 会话名，包含目录名以区分不同项目
-	dirName := filepath.Base(cwd)
-	if dirName == "" || dirName == "/" {
-		dirName = "root"
-	}
-	// 清理目录名，移除非法字符
-	dirName = strings.ReplaceAll(dirName, "/", "-")
-	dirName = strings.ReplaceAll(dirName, " ", "_")
-	sessionName := fmt.Sprintf("claude-%s-%s", deviceID[:8], dirName)
 
 	// 检查 tmux session 是否已存在
 	cmd := exec.Command("tmux", "has-session", "-t", sessionName)
