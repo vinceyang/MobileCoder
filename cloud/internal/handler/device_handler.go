@@ -304,17 +304,20 @@ func (h *DeviceHandler) CreateSession(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	log.Printf("CreateSession: deviceID=%s, sessionName=%s, projectPath=%s", req.DeviceID, req.SessionName, req.ProjectPath)
 	session, err := h.deviceService.CreateSession(req.DeviceID, req.SessionName, req.ProjectPath)
 	if err != nil {
+		log.Printf("CreateSession error: %v", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	log.Printf("CreateSession success: id=%d, sessionName=%s, status=%s", session.ID, session.SessionName, session.Status)
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
-		"session_id": session.ID,
+		"session_id":   session.ID,
 		"session_name": session.SessionName,
-		"status": session.Status,
+		"status":       session.Status,
 	})
 }
 

@@ -240,6 +240,7 @@ func main() {
 
 	// 向服务器注册 session
 	sessionJSON := fmt.Sprintf(`{"device_id":"%s","session_name":"%s","project_path":"%s"}`, deviceID, sessionName, projectPath)
+	log.Printf("Registering session: %s", sessionJSON)
 	resp, err := http.Post("http://"+*serverURL+"/api/sessions", "application/json", strings.NewReader(sessionJSON))
 	if err == nil {
 		defer resp.Body.Close()
@@ -248,6 +249,8 @@ func main() {
 		if sessionID, ok := result["session_id"].(float64); ok {
 			log.Printf("Session registered: %d, name: %s", int(sessionID), sessionName)
 		}
+	} else {
+		log.Printf("Session registration failed: %v", err)
 	}
 
 	// 捕获终端输出并发送到 H5
