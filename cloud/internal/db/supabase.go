@@ -7,6 +7,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 )
 
@@ -203,7 +204,8 @@ func (s *SupabaseDB) UpdateSessionStatus(deviceID, sessionName, status string) e
 	body, _ := json.Marshal(map[string]string{
 		"status": status,
 	})
-	_, err := s.do("PATCH", "/sessions?device_id=eq."+deviceID+"&session_name=eq."+sessionName+"&status=eq.active", body)
+	encodedSessionName := url.QueryEscape(sessionName)
+	_, err := s.do("PATCH", "/sessions?device_id=eq."+deviceID+"&session_name=eq."+encodedSessionName+"&status=eq.active", body)
 	return err
 }
 
@@ -215,7 +217,8 @@ func (s *SupabaseDB) DeleteSession(sessionID int64) error {
 
 // GetSessionByName finds an existing session by device_id and session_name
 func (s *SupabaseDB) GetSessionByName(deviceID, sessionName string) (*Session, error) {
-	resp, err := s.do("GET", "/sessions?device_id=eq."+deviceID+"&session_name=eq."+sessionName, nil)
+	encodedSessionName := url.QueryEscape(sessionName)
+	resp, err := s.do("GET", "/sessions?device_id=eq."+deviceID+"&session_name=eq."+encodedSessionName, nil)
 	if err != nil {
 		return nil, err
 	}
