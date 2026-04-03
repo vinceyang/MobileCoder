@@ -5,7 +5,7 @@ const config: CapacitorConfig = {
   appName: 'MobileCoder',
   webDir: 'dist',
   server: {
-    url: 'http://121.41.69.142:3001',
+    url: process.env.CAPACITOR_SERVER_URL || 'http://121.41.69.142:3001',
     cleartext: true,
   },
   android: {

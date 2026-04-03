@@ -1,9 +1,10 @@
 {
   "name": "mobile-app",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
   "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
@@ -11,13 +12,13 @@
   "license": "ISC",
   "dependencies": {
     "@capacitor/android": "^8.3.0",
-    "@capacitor/cli": "^8.3.0",
     "@capacitor/core": "^8.3.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-router-dom": "^6.30.3"
   },
   "devDependencies": {
+    "@capacitor/cli": "^8.3.0",
     "@types/react": "^18.3.28",
     "@types/react-dom": "^18.3.7",
     "@vitejs/plugin-react": "^4.7.0",
