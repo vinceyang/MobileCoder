@@ -1,0 +1,12 @@
+**/._*
+**/.DS_Store
+**/.AppleDouble
+**/.LSOverride
+**/.Trashes
+.git
+node_modules
+.next
+build
+dist
+logs
+*.log
