@@ -205,7 +205,7 @@ func (s *SupabaseDB) UpdateSessionStatus(deviceID, sessionName, status string) e
 		"status": status,
 	})
 	encodedSessionName := url.QueryEscape(sessionName)
-	_, err := s.do("PATCH", "/sessions?device_id=eq."+deviceID+"&session_name=eq."+encodedSessionName+"&status=eq.active", body)
+	_, err := s.do("PATCH", "/sessions?device_id=eq."+deviceID+"&session_name=eq."+encodedSessionName, body)
 	return err
 }
 
