@@ -50,14 +50,21 @@ export default function Terminal({ deviceId }: TerminalProps) {
     }
 
     ws.onmessage = (event) => {
-      const msg = JSON.parse(event.data)
-      if (msg.type === 'terminal_output') {
-        setOutput(msg.payload.content)
+      try {
+        const msg = JSON.parse(event.data)
+        if (msg.type === 'terminal_output') {
+          setOutput(msg.payload.content)
+        }
+      } catch (e) {
+        // Ignore non-JSON messages
       }
     }
     wsRef.current = ws
 
-    return () => ws.close()
+    return () => {
+      ws.close()
+      wsRef.current = null
+    }
   }, [deviceId, sessionName])
 
   useEffect(() => {
@@ -67,7 +74,7 @@ export default function Terminal({ deviceId }: TerminalProps) {
   }, [output])
 
   const sendKey = (key: string, modifiers: string[] = []) => {
-    if (!wsRef.current) return
+    if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return
 
     if (key.startsWith('/')) {
       wsRef.current.send(JSON.stringify({
@@ -93,7 +100,7 @@ export default function Terminal({ deviceId }: TerminalProps) {
   }
 
   const handleSend = () => {
-    if (!input.trim() || !wsRef.current) return
+    if (!input.trim() || !wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return
     wsRef.current.send(JSON.stringify({
       type: 'terminal_input',
       payload: { content: input + '\n' }
