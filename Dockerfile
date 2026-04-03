@@ -3,7 +3,7 @@ FROM docker.io/library/golang:1.25-bookworm AS builder-cloud
 
 WORKDIR /app
 COPY cloud/go.mod cloud/go.sum ./
-RUN go mod download
+RUN GOPROXY=https://goproxy.cn,direct go mod download
 
 COPY cloud/ .
 RUN CGO_ENABLED=0 GOOS=linux go build -o server ./cmd/server
