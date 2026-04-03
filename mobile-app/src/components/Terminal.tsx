@@ -11,14 +11,14 @@ interface KeyButton {
   description?: string
 }
 
+const WS_SERVER = 'ws://121.41.69.142:8080'
+
 const getWSUrl = (deviceId: string, sessionName: string, token: string) => {
   const params = new URLSearchParams({ device_id: deviceId, token })
   if (sessionName) {
     params.append('session_name', sessionName)
   }
-  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-  const hostname = window.location.hostname
-  return `${protocol}//${hostname}:8080/ws?${params.toString()}`
+  return `${WS_SERVER}/ws?${params.toString()}`
 }
 
 export default function Terminal({ deviceId }: TerminalProps) {
