@@ -1,26 +1,31 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { getDevices, Device } from '../services/device'
 
 export default function DevicesPage() {
   const [devices, setDevices] = useState<Device[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
   const navigate = useNavigate()
 
-  useEffect(() => {
-    loadDevices()
-  }, [])
-
-  const loadDevices = async () => {
+  const loadDevices = useCallback(async () => {
     try {
+      setError('')
       const data = await getDevices()
       setDevices(data)
     } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load devices')
       console.error(err)
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
+
+  useEffect(() => {
+    const controller = new AbortController()
+    loadDevices()
+    return () => controller.abort()
+  }, [loadDevices])
 
   const handleLogout = () => {
     localStorage.clear()
@@ -39,6 +44,13 @@ export default function DevicesPage() {
       <div className="p-4">
         {loading ? (
           <p className="text-gray-400 text-center">加载中...</p>
+        ) : error ? (
+          <div className="text-center text-red-400 mt-8">
+            <p>{error}</p>
+            <button onClick={loadDevices} className="mt-2 text-blue-400 underline">
+              重试
+            </button>
+          </div>
         ) : devices.length === 0 ? (
           <div className="text-center text-gray-400 mt-8">
             <p>暂无设备</p>
