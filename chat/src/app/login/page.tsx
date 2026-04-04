@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 
 export default function LoginPage() {
@@ -9,6 +9,14 @@ export default function LoginPage() {
   const [isRegister, setIsRegister] = useState(false);
   const [error, setError] = useState('');
   const router = useRouter();
+
+  // 检查是否已登录
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (token) {
+      router.push('/devices');
+    }
+  }, [router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -42,9 +50,15 @@ export default function LoginPage() {
     }
   };
 
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user_id');
+    localStorage.removeItem('email');
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-900">
-      <form onSubmit={handleSubmit} className="bg-gray-800 p-8 rounded-lg w-96">
+      <form onSubmit={handleSubmit} className="bg-gray-800 p-8 rounded-lg w-96 max-w-[90vw]">
         <h1 className="text-2xl text-white mb-6">
           {isRegister ? '注册' : '登录'}
         </h1>
@@ -83,6 +97,14 @@ export default function LoginPage() {
         <p className="text-gray-400 mt-4 text-center cursor-pointer" onClick={() => setIsRegister(!isRegister)}>
           {isRegister ? '已有账号？登录' : '没有账号？注册'}
         </p>
+
+        <button
+          type="button"
+          onClick={handleLogout}
+          className="w-full mt-4 text-gray-500 text-sm hover:text-gray-400"
+        >
+          退出登录
+        </button>
       </form>
     </div>
   );
