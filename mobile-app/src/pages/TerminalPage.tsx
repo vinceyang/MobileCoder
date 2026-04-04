@@ -31,5 +31,20 @@ export default function TerminalPage() {
     )
   }
 
-  return <Terminal deviceId={deviceId} />
+  return (
+    <div className="h-[100dvh] flex flex-col">
+      <header className="flex items-center px-4 py-2 bg-gray-900 border-b border-gray-800">
+        <button
+          onClick={() => navigate(`/devices/${deviceId}`)}
+          className="text-gray-400 hover:text-white text-xl mr-4"
+        >
+          ←
+        </button>
+        <span className="text-gray-400 text-sm">终端</span>
+      </header>
+      <div className="flex-1 overflow-hidden">
+        <Terminal deviceId={deviceId} />
+      </div>
+    </div>
+  )
 }

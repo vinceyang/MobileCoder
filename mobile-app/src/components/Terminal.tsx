@@ -29,24 +29,42 @@ export default function Terminal({ deviceId }: TerminalProps) {
   const [lastKey, setLastKey] = useState<string>('')
   const wsRef = useRef<WebSocket | null>(null)
   const outputRef = useRef<HTMLDivElement>(null)
+  const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const reconnectAttemptsRef = useRef(0)
 
   const sessionName = localStorage.getItem('session_name') || ''
 
-  useEffect(() => {
+  const connect = () => {
+    // Clean up existing connection
+    if (wsRef.current) {
+      wsRef.current.close()
+      wsRef.current = null
+    }
+    if (reconnectTimeoutRef.current) {
+      clearTimeout(reconnectTimeoutRef.current)
+    }
+
     const token = localStorage.getItem('token') || 'viewer'
     const wsUrl = getWSUrl(deviceId, sessionName, token)
     const ws = new WebSocket(wsUrl)
 
     ws.onopen = () => {
       setConnected(true)
+      reconnectAttemptsRef.current = 0
     }
 
     ws.onclose = () => {
       setConnected(false)
+      wsRef.current = null
+
+      // Auto reconnect with exponential backoff
+      const delay = Math.min(1000 * Math.pow(2, reconnectAttemptsRef.current), 30000)
+      reconnectAttemptsRef.current++
+      reconnectTimeoutRef.current = setTimeout(connect, delay)
     }
 
     ws.onerror = () => {
-      // Ignore errors when device not connected
+      // Ignore errors
     }
 
     ws.onmessage = (event) => {
@@ -60,10 +78,18 @@ export default function Terminal({ deviceId }: TerminalProps) {
       }
     }
     wsRef.current = ws
+  }
+
+  useEffect(() => {
+    connect()
 
     return () => {
-      ws.close()
-      wsRef.current = null
+      if (wsRef.current) {
+        wsRef.current.close()
+      }
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current)
+      }
     }
   }, [deviceId, sessionName])
 
@@ -135,15 +161,20 @@ export default function Terminal({ deviceId }: TerminalProps) {
   ]
 
   return (
-    <div className="h-[100dvh] bg-gray-900 flex flex-col overflow-y-auto touch-pan-y">
+    <div className="h-full bg-gray-900 flex flex-col overflow-hidden">
       <div className="flex items-center justify-between px-4 py-2 border-b border-gray-800">
         <div className="flex items-center gap-2">
-          <span className="text-sm text-gray-400">终端</span>
-          <span className={`text-xs ${connected ? 'text-green-400' : 'text-red-400'}`}>
-            {connected ? '●' : '○'}
+          <span className={`w-2 h-2 rounded-full ${connected ? 'bg-green-500' : 'bg-red-500'}`} />
+          <span className="text-xs text-gray-400">
+            {connected ? '已连接' : '重连中...'}
           </span>
         </div>
-        <span className="text-xs text-gray-500">{sessionName}</span>
+        <button
+          onClick={connect}
+          className="text-xs text-blue-400 hover:text-blue-300"
+        >
+          重连
+        </button>
       </div>
 
       <div ref={outputRef} className="flex-1 overflow-auto p-4">

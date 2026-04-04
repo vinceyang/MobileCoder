@@ -6,6 +6,7 @@ import AnsiToHtml from 'ansi-to-html';
 interface TerminalProps {
   deviceId: string;
   sessionName?: string;
+  onConnectionChange?: (connected: boolean) => void;
 }
 
 interface KeyButton {
@@ -30,16 +31,17 @@ const getWSUrl = (deviceId: string, sessionName: string, token: string) => {
 // 检测是否为移动端
 const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
 
-export default function Terminal({ deviceId, sessionName }: TerminalProps) {
+export default function Terminal({ deviceId, sessionName, onConnectionChange }: TerminalProps) {
   const [output, setOutput] = useState('');
   const [input, setInput] = useState('');
   const [connected, setConnected] = useState(false);
   const [mode, setMode] = useState<'text' | 'keys'>(isMobile ? 'keys' : 'text');
   const [lastKey, setLastKey] = useState<string>('');
-  const [isMobileView, setIsMobileView] = useState(isMobile);
   const wsRef = useRef<WebSocket | null>(null);
   const outputRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const reconnectAttemptsRef = useRef(0);
 
   // 从 URL 获取 session_name
   const [urlSessionName, setUrlSessionName] = useState('');
@@ -56,6 +58,67 @@ export default function Terminal({ deviceId, sessionName }: TerminalProps) {
 
   // 优先使用 props，其次使用 URL 中的 session_name
   const effectiveSessionName = sessionName || urlSessionName || localStorage.getItem('session_name') || '';
+
+  // 连接到 WebSocket
+  const connect = () => {
+    // 清理现有连接
+    if (wsRef.current) {
+      wsRef.current.close();
+      wsRef.current = null;
+    }
+    if (reconnectTimeoutRef.current) {
+      clearTimeout(reconnectTimeoutRef.current);
+    }
+
+    const token = localStorage.getItem('token') || 'viewer';
+    const wsUrl = getWSUrl(deviceId, effectiveSessionName, token);
+    const ws = new WebSocket(wsUrl);
+
+    ws.onopen = () => {
+      setConnected(true);
+      onConnectionChange?.(true);
+      reconnectAttemptsRef.current = 0;
+      console.log('WebSocket connected');
+    };
+
+    ws.onclose = () => {
+      setConnected(false);
+      onConnectionChange?.(false);
+      wsRef.current = null;
+
+      // 自动重连，指数退避
+      const delay = Math.min(1000 * Math.pow(2, reconnectAttemptsRef.current), 30000);
+      reconnectAttemptsRef.current++;
+      reconnectTimeoutRef.current = setTimeout(connect, delay);
+      console.log(`WebSocket disconnected, reconnecting in ${delay}ms...`);
+    };
+
+    ws.onerror = () => {
+      // WebSocket 连接失败是正常的（设备未绑定时），静默处理
+    };
+
+    ws.onmessage = (event) => {
+      const msg = JSON.parse(event.data);
+      if (msg.type === 'terminal_output') {
+        setOutput(msg.payload.content);
+      }
+    };
+    wsRef.current = ws;
+  };
+
+  // 初始化 WebSocket 连接
+  useEffect(() => {
+    connect();
+
+    return () => {
+      if (wsRef.current) {
+        wsRef.current.close();
+      }
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current);
+      }
+    };
+  }, [deviceId]);
 
   // ANSI to HTML 转换器
   const ansiToHtml = useMemo(() => new AnsiToHtml({
@@ -76,45 +139,6 @@ export default function Terminal({ deviceId, sessionName }: TerminalProps) {
       9: '#ff0000',
     }
   }), []);
-
-  // 监听窗口大小变化
-  useEffect(() => {
-    const handleResize = () => {
-      setIsMobileView(window.innerWidth < 768);
-    };
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
-
-  useEffect(() => {
-    const token = localStorage.getItem('token') || 'viewer';
-    const wsUrl = getWSUrl(deviceId, effectiveSessionName, token);
-    const ws = new WebSocket(wsUrl);
-
-    ws.onopen = () => {
-      setConnected(true);
-      console.log('WebSocket connected');
-    };
-
-    ws.onclose = () => {
-      setConnected(false);
-      console.log('WebSocket disconnected');
-    };
-
-    ws.onerror = () => {
-      // WebSocket 连接失败是正常的（设备未绑定时），静默处理
-    };
-
-    ws.onmessage = (event) => {
-      const msg = JSON.parse(event.data);
-      if (msg.type === 'terminal_output') {
-        setOutput(msg.payload.content);
-      }
-    };
-    wsRef.current = ws;
-
-    return () => ws.close();
-  }, [deviceId]);
 
   useEffect(() => {
     if (outputRef.current) {
@@ -193,17 +217,7 @@ export default function Terminal({ deviceId, sessionName }: TerminalProps) {
   ];
 
   return (
-    <div className="h-[100dvh] bg-gray-900 flex flex-col overflow-y-auto overflow-x-hidden touch-pan-y">
-      {/* 头部 - 紧凑设计 */}
-      <div className={`flex items-center justify-between px-2 md:px-4 py-2 border-b border-gray-800 ${isMobileView ? 'min-h-[44px]' : ''}`}>
-        <div className="flex items-center gap-2">
-          <span className="text-sm text-gray-400">终端</span>
-          <span className={`text-xs ${connected ? 'text-green-400' : 'text-red-400'}`}>
-            {connected ? '●' : '○'}
-          </span>
-        </div>
-      </div>
-
+    <div className="h-full flex flex-col overflow-hidden" style={{ backgroundColor: '#111827' }}>
       {/* 终端输出区域 */}
       <div
         ref={outputRef}
@@ -211,7 +225,7 @@ export default function Terminal({ deviceId, sessionName }: TerminalProps) {
         style={{ WebkitOverflowScrolling: 'touch' }}
       >
         {!output ? (
-          <div className="text-gray-500 text-sm">
+          <div className="text-sm" style={{ color: '#6b7280' }}>
             {connected ? '等待终端输出...' : '请启动 Desktop Agent 连接设备'}
           </div>
         ) : (

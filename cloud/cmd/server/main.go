@@ -3,6 +3,8 @@ package main
 import (
 	"log"
 	"net/http"
+	"os"
+	"path/filepath"
 
 	"github.com/mobile-coder/cloud/internal/config"
 	"github.com/mobile-coder/cloud/internal/db"
@@ -10,6 +12,37 @@ import (
 	"github.com/mobile-coder/cloud/internal/service"
 	"github.com/mobile-coder/cloud/internal/ws"
 )
+
+// Static file handler for Capacitor app
+func staticHandler(dir string) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Default to index.html for SPA routing
+		requestedPath := r.URL.Path
+		if requestedPath == "/" || requestedPath == "" {
+			requestedPath = "/index.html"
+		}
+
+		filePath := filepath.Join(dir, requestedPath)
+
+		// Security: prevent directory traversal
+		absDir, _ := filepath.Abs(dir)
+		absPath, _ := filepath.Abs(filePath)
+		if !filepath.HasPrefix(absPath, absDir) {
+			http.NotFound(w, r)
+			return
+		}
+
+		// Check if file exists
+		if _, err := os.Stat(filePath); os.IsNotExist(err) {
+			// For SPA, serve index.html for non-file paths
+			indexPath := filepath.Join(dir, "index.html")
+			http.ServeFile(w, r, indexPath)
+			return
+		}
+
+		http.ServeFile(w, r, filePath)
+	})
+}
 
 // CORS middleware
 func corsMiddleware(next http.Handler) http.Handler {
@@ -59,6 +92,13 @@ func main() {
 
 	// Routes
 	mux := http.NewServeMux()
+
+	// Static files for Capacitor app (mobile)
+	staticDir := os.Getenv("STATIC_DIR")
+	if staticDir != "" {
+		mux.Handle("/", staticHandler(staticDir))
+		log.Printf("Serving static files from: %s", staticDir)
+	}
 
 	// Auth routes
 	mux.HandleFunc("/api/auth/register", authHandler.Register)

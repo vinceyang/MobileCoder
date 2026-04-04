@@ -10,6 +10,15 @@ const config: CapacitorConfig = {
   },
   android: {
     backgroundColor: '#1f2937',
+    webContentsConfig: {
+      isWebViewDebuggable: true,
+    },
+  },
+  plugins: {
+    SplashScreen: {
+      launchShowDuration: 1000,
+      backgroundColor: '#1f2937',
+    },
   },
 };
 
