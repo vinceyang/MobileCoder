@@ -70,6 +70,15 @@ func (h *WSHubHandler) HandleConnection(w http.ResponseWriter, r *http.Request) 
 
 	h.hub.Register(client)
 
+	// Desktop Agent (no token) - immediately update session status to active
+	// This handles reconnection scenarios where terminal_output might not be sent immediately
+	if token == "" && sessionName != "" {
+		go func() {
+			h.deviceService.UpdateSessionStatus(deviceID, sessionName, "active")
+			log.Printf("WS: Desktop Agent connected, updated session status to active")
+		}()
+	}
+
 	// If it's not an agent (i.e., it's an H5 viewer), send the last terminal output
 	if token != "" {
 		go func() {
@@ -112,9 +121,9 @@ func (h *WSHubHandler) readPump(client *ws.Client) {
 		// If client sends terminal_output, it's a Desktop Agent
 		if msgType == "terminal_output" {
 			client.IsAgent = true
-			// Store session name from agent
+			// Update session status to active when agent connects
 			if client.SessionName != "" {
-				// Update sessionName for routing
+				h.deviceService.UpdateSessionStatus(client.DeviceID, client.SessionName, "active")
 			}
 			// Broadcast terminal_output only to H5 viewers (not to agents)
 			h.hub.BroadcastToViewers(client.DeviceID, client.SessionName, message)

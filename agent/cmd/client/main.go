@@ -16,6 +16,113 @@ import (
 	"github.com/mobile-coder/agent/internal/client"
 )
 
+// AI coding tool types
+type AIClient string
+
+const (
+	AIClientClaude AIClient = "claude"
+	AIClientCodex  AIClient = "codex"
+	AIClientCursor AIClient = "cursor"
+)
+
+// AI tool configuration
+type ToolConfig struct {
+	Name        string   // Command name
+	CheckCmd    string   // Command to check if installed
+	CheckArgs   []string // Args for version check
+	StartArgs   []string // Args to start the tool
+	InstallHint string   // Hint for installation
+}
+
+var toolConfigs = map[AIClient]ToolConfig{
+	AIClientClaude: {
+		Name:        "claude",
+		CheckCmd:    "claude",
+		CheckArgs:   []string{"--version"},
+		StartArgs:   []string{"--dangerously-skip-permissions"},
+		InstallHint: "npm install -g @anthropic-ai/claude-code",
+	},
+	AIClientCodex: {
+		Name:        "codex",
+		CheckCmd:    "codex",
+		CheckArgs:   []string{"--version"},
+		StartArgs:   []string{"--c"},
+		InstallHint: "npm install -g @openai/codex or see https://docs.codex.dev",
+	},
+	AIClientCursor: {
+		Name:        "cursor",
+		CheckCmd:    "cursor",
+		CheckArgs:   []string{"--version"},
+		StartArgs:   []string{"--c"},
+		InstallHint: "Download from https://cursor.sh or npm install -g cursor",
+	},
+}
+
+// checkTool checks if the AI tool is installed and available
+func checkTool(tool AIClient) error {
+	config, ok := toolConfigs[tool]
+	if !ok {
+		return fmt.Errorf("unknown AI tool: %s", tool)
+	}
+
+	// Check if command exists
+	cmd := exec.Command("which", config.CheckCmd)
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("%s not found. Install with: %s", config.Name, config.InstallHint)
+	}
+
+	// Try to get version
+	cmd = exec.Command(config.CheckCmd, config.CheckArgs...)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		log.Printf("Warning: %s --version failed: %v", config.Name, err)
+		// Still allow running if command exists
+	} else {
+		log.Printf("%s version: %s", config.Name, strings.TrimSpace(string(output)))
+	}
+
+	return nil
+}
+
+// getToolCommand returns the command and args to start the AI tool
+func getToolCommand(tool AIClient, projectPath string) (string, []string) {
+	config := toolConfigs[tool]
+
+	switch tool {
+	case AIClientClaude:
+		// Claude Code: need to remove CLAUDECODE env var and add --dangerously-skip-permissions
+		return "env", []string{"-u", "CLAUDECODE", config.Name, "--dangerously-skip-permissions"}
+	case AIClientCodex:
+		// Codex: use --project flag if supported, otherwise current dir
+		return config.Name, config.StartArgs
+	case AIClientCursor:
+		// Cursor: similar to Codex
+		return config.Name, config.StartArgs
+	default:
+		return config.Name, config.StartArgs
+	}
+}
+
+// checkDependencies checks if all required dependencies are installed
+func checkDependencies() error {
+	// Check tmux
+	cmd := exec.Command("which", "tmux")
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("tmux not found. Install with: brew install tmux (macOS) or apt install tmux (Linux)")
+	}
+
+	// Check tmux version
+	cmd = exec.Command("tmux", "-V")
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		log.Printf("Warning: tmux -V failed: %v", err)
+	} else {
+		log.Printf("tmux version: %s", strings.TrimSpace(string(output)))
+	}
+
+	return nil
+}
+
 func generateCode(length int) string {
 	bytes := make([]byte, length)
 	rand.Read(bytes)
@@ -170,9 +277,41 @@ func keyToTmux(key string, modifiers []interface{}) string {
 
 func main() {
 	serverURL := flag.String("server", "localhost:8080", "Cloud server URL")
+	aiTool := flag.String("ai", "claude", "AI coding tool: claude, codex, cursor")
 	flag.Parse()
 
-	// 使用 device_id 持久化
+	// Check dependencies first
+	fmt.Println("==========================================")
+	fmt.Println("  MobileCoder Desktop Agent")
+	fmt.Println("==========================================")
+	fmt.Println()
+
+	// Check tmux dependency
+	fmt.Print("Checking tmux... ")
+	if err := checkDependencies(); err != nil {
+		fmt.Printf("FAILED\n%v\n", err)
+		os.Exit(1)
+	}
+	fmt.Println("OK")
+
+	// Parse AI tool
+	tool := AIClient(*aiTool)
+	if _, ok := toolConfigs[tool]; !ok {
+		fmt.Printf("Error: unknown AI tool '%s'. Available options: claude, codex, cursor\n", *aiTool)
+		os.Exit(1)
+	}
+
+	// Check AI tool
+	fmt.Printf("Checking %s... ", tool)
+	if err := checkTool(tool); err != nil {
+		fmt.Printf("FAILED\n%v\n", err)
+		os.Exit(1)
+	}
+	fmt.Println("OK")
+	fmt.Println()
+
+	// Check device registration
+	fmt.Println("Connecting to server...")
 	deviceID, bindCode, err := loadOrCreateDeviceID(*serverURL)
 	if err != nil {
 		log.Fatalf("Failed to load/create device ID: %v", err)
@@ -226,16 +365,38 @@ func main() {
 		}
 	}()
 
+	// Get command for the selected AI tool
+	cmdName, cmdArgs := getToolCommand(tool, projectPath)
+
 	// 检查 tmux session 是否已存在
 	cmd := exec.Command("tmux", "has-session", "-t", sessionName)
 	if err := cmd.Run(); err != nil {
-		// 创建新的 tmux session 并在其中运行 claude（移除 CLAUDECODE 环境变量）
-		exec.Command("tmux", "new-session", "-d", "-s", sessionName, "env", "-u", "CLAUDECODE", "claude", "--dangerously-skip-permissions").Run()
+		// 创建新的 tmux session 并在其中运行 AI 工具
+		if tool == AIClientClaude {
+			// Claude Code: 使用 env -u CLAUDECODE 移除环境变量
+			fullArgs := []string{"new-session", "-d", "-s", sessionName, "env", "-u", "CLAUDECODE", cmdName}
+			fullArgs = append(fullArgs, cmdArgs...)
+			exec.Command("tmux", fullArgs...).Run()
+		} else {
+			// Codex/Cursor: 直接运行
+			fullArgs := []string{"new-session", "-d", "-s", sessionName, cmdName}
+			fullArgs = append(fullArgs, cmdArgs...)
+			exec.Command("tmux", fullArgs...).Run()
+		}
 	} else {
 		// session 已存在，发送 Ctrl+C 停止当前，然后发送继续命令
 		exec.Command("tmux", "send-keys", "-t", sessionName, "C-c").Run()
 		time.Sleep(300 * time.Millisecond)
-		exec.Command("tmux", "send-keys", "-t", sessionName, "env", "-u", "CLAUDECODE", "claude", "-c", "--dangerously-skip-permissions", "\r").Run()
+		if tool == AIClientClaude {
+			fullArgs := []string{"send-keys", "-t", sessionName, "env", "-u", "CLAUDECODE", cmdName, "-c", "--dangerously-skip-permissions"}
+			fullArgs = append(fullArgs, "\r")
+			exec.Command("tmux", fullArgs...).Run()
+		} else {
+			fullArgs := []string{"send-keys", "-t", sessionName, cmdName}
+			fullArgs = append(fullArgs, cmdArgs...)
+			fullArgs = append(fullArgs, "\r")
+			exec.Command("tmux", fullArgs...).Run()
+		}
 	}
 
 	// 向服务器注册 session
@@ -333,7 +494,7 @@ func main() {
 	}()
 
 	// 提示
-	fmt.Println("\nClaude Code 已在 tmux 会话中启动!")
+	fmt.Printf("\n%s 已在 tmux 会话中启动!\n", strings.Title(string(tool)))
 	fmt.Printf("查看终端: tmux attach -t %s\n", sessionName)
 	fmt.Println("退出 tmux: 按 Ctrl+B 然后按 D")
 	fmt.Println("\nH5 页面应该能看到终端输出")

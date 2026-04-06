@@ -24,9 +24,10 @@ export default function DeviceDetailPage() {
   }, [deviceId])
 
   useEffect(() => {
-    const controller = new AbortController()
     loadSessions()
-    return () => controller.abort()
+    // Auto-refresh sessions every 3 seconds to detect reconnection
+    const interval = setInterval(loadSessions, 3000)
+    return () => clearInterval(interval)
   }, [loadSessions])
 
   const connectSession = (sessionName: string) => {
