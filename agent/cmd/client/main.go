@@ -286,7 +286,7 @@ func main() {
 	fmt.Println("==========================================")
 	fmt.Println()
 
-	// Check tmux dependency
+	// Check tmux dependency (required)
 	fmt.Print("Checking tmux... ")
 	if err := checkDependencies(); err != nil {
 		fmt.Printf("FAILED\n%v\n", err)
@@ -294,15 +294,28 @@ func main() {
 	}
 	fmt.Println("OK")
 
-	// Parse AI tool
+	// Check all known AI tools (warnings only, not errors)
+	fmt.Println("Checking available AI tools...")
+	for t, config := range toolConfigs {
+		cmd := exec.Command("which", config.CheckCmd)
+		if err := cmd.Run(); err != nil {
+			fmt.Printf("  %s: not found (hint: %s)\n", config.Name, config.InstallHint)
+		} else {
+			fmt.Printf("  %s: found\n", config.Name)
+		}
+		_ = t // suppress unused variable warning
+	}
+	fmt.Println()
+
+	// Parse and check the specified AI tool (must exist)
 	tool := AIClient(*aiTool)
 	if _, ok := toolConfigs[tool]; !ok {
 		fmt.Printf("Error: unknown AI tool '%s'. Available options: claude, codex, cursor\n", *aiTool)
 		os.Exit(1)
 	}
 
-	// Check AI tool
-	fmt.Printf("Checking %s... ", tool)
+	// Check if the specified AI tool is installed
+	fmt.Printf("Checking %s (specified)... ", tool)
 	if err := checkTool(tool); err != nil {
 		fmt.Printf("FAILED\n%v\n", err)
 		os.Exit(1)
