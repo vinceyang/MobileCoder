@@ -51,10 +51,10 @@ var toolConfigs = map[AIClient]ToolConfig{
 	},
 	AIClientCursor: {
 		Name:        "cursor",
-		CheckCmd:    "cursor",
+		CheckCmd:    "agent",
 		CheckArgs:   []string{"--version"},
 		StartArgs:   []string{"--c"},
-		InstallHint: "Download from https://cursor.sh or npm install -g cursor",
+		InstallHint: "Download from https://cursor.sh",
 	},
 }
 
