@@ -86,20 +86,18 @@ func checkTool(tool AIClient) error {
 
 // getToolCommand returns the command and args to start the AI tool
 func getToolCommand(tool AIClient, projectPath string) (string, []string) {
-	config := toolConfigs[tool]
-
 	switch tool {
 	case AIClientClaude:
 		// Claude Code: need to remove CLAUDECODE env var and add --dangerously-skip-permissions
-		return "env", []string{"-u", "CLAUDECODE", config.Name, "--dangerously-skip-permissions"}
+		return "env", []string{"-u", "CLAUDECODE", "claude", "--dangerously-skip-permissions"}
 	case AIClientCodex:
-		// Codex: use --project flag if supported, otherwise current dir
-		return config.Name, config.StartArgs
+		// Codex: use --project flag for specific directory
+		return "codex", []string{"--project", projectPath}
 	case AIClientCursor:
-		// Cursor: similar to Codex
-		return config.Name, config.StartArgs
+		// Cursor (agent): use --project flag for specific directory
+		return "agent", []string{"--project", projectPath}
 	default:
-		return config.Name, config.StartArgs
+		return string(tool), []string{"--c"}
 	}
 }
 
@@ -358,8 +356,8 @@ func main() {
 	// 清理目录名，移除非法字符
 	dirName = strings.ReplaceAll(dirName, "/", "-")
 	dirName = strings.ReplaceAll(dirName, " ", "_")
-	sessionName := fmt.Sprintf("claude-%s-%s", deviceID[:6], dirName)
-	log.Printf("Agent starting with sessionName=%s, deviceID=%s, dirName=%s", sessionName, deviceID, dirName)
+	sessionName := fmt.Sprintf("%s-%s-%s", tool, deviceID[:6], dirName)
+	log.Printf("Agent starting with tool=%s, sessionName=%s, deviceID=%s, dirName=%s", tool, sessionName, deviceID, dirName)
 
 	// WebSocket 连接
 	log.Printf("Connecting to WebSocket with sessionName=%s", sessionName)
