@@ -91,11 +91,11 @@ func getToolCommand(tool AIClient, projectPath string) (string, []string) {
 		// Claude Code: need to remove CLAUDECODE env var and add --dangerously-skip-permissions
 		return "env", []string{"-u", "CLAUDECODE", "claude", "--dangerously-skip-permissions"}
 	case AIClientCodex:
-		// Codex: use --project flag for specific directory
-		return "codex", []string{"--project", projectPath}
+		// Codex: run without args (interactive mode)
+		return "codex", []string{}
 	case AIClientCursor:
-		// Cursor (agent): use --project flag for specific directory
-		return "agent", []string{"--project", projectPath}
+		// Cursor (agent): run without args (interactive mode)
+		return "agent", []string{}
 	default:
 		return string(tool), []string{"--c"}
 	}
@@ -383,33 +383,34 @@ func main() {
 	historyLimit := 5000
 
 	// 检查 tmux session 是否已存在
-	cmd := exec.Command("tmux", "has-session", "-t", sessionName)
+	cmd := exec.Command("tmux", "-u", "has-session", "-t", sessionName)
 	if err := cmd.Run(); err != nil {
 		// 创建新的 tmux session 并在其中运行 AI 工具
-		// 设置较大的 history-limit 以保存更多输出
 		if tool == AIClientClaude {
 			// Claude Code: 使用 env -u CLAUDECODE 移除环境变量
-			fullArgs := []string{"new-session", "-d", "-s", sessionName, "-history-limit", fmt.Sprintf("%d", historyLimit), "env", "-u", "CLAUDECODE", cmdName}
+			fullArgs := []string{"-u", "new-session", "-d", "-s", sessionName, "env", "-u", "CLAUDECODE", cmdName}
 			fullArgs = append(fullArgs, cmdArgs...)
 			exec.Command("tmux", fullArgs...).Run()
 		} else {
 			// Codex/Cursor: 直接运行
-			fullArgs := []string{"new-session", "-d", "-s", sessionName, "-history-limit", fmt.Sprintf("%d", historyLimit), cmdName}
+			fullArgs := []string{"-u", "new-session", "-d", "-s", sessionName, cmdName}
 			fullArgs = append(fullArgs, cmdArgs...)
 			exec.Command("tmux", fullArgs...).Run()
 		}
+		// 设置历史记录大小
+		exec.Command("tmux", "-u", "set-option", "-t", sessionName, "history-limit", fmt.Sprintf("%d", historyLimit)).Run()
 	} else {
 		// session 已存在，发送 Ctrl+C 停止当前，然后发送继续命令
-		exec.Command("tmux", "send-keys", "-t", sessionName, "C-c").Run()
+		exec.Command("tmux", "-u", "send-keys", "-t", sessionName, "C-c").Run()
 		time.Sleep(300 * time.Millisecond)
 		// 设置 history-limit（如果已存在）
-		exec.Command("tmux", "set-option", "-t", sessionName, "history-limit", fmt.Sprintf("%d", historyLimit)).Run()
+		exec.Command("tmux", "-u", "set-option", "-t", sessionName, "history-limit", fmt.Sprintf("%d", historyLimit)).Run()
 		if tool == AIClientClaude {
-			fullArgs := []string{"send-keys", "-t", sessionName, "env", "-u", "CLAUDECODE", cmdName, "-c", "--dangerously-skip-permissions"}
+			fullArgs := []string{"-u", "send-keys", "-t", sessionName, "env", "-u", "CLAUDECODE", cmdName, "-c", "--dangerously-skip-permissions"}
 			fullArgs = append(fullArgs, "\r")
 			exec.Command("tmux", fullArgs...).Run()
 		} else {
-			fullArgs := []string{"send-keys", "-t", sessionName, cmdName}
+			fullArgs := []string{"-u", "send-keys", "-t", sessionName, cmdName}
 			fullArgs = append(fullArgs, cmdArgs...)
 			fullArgs = append(fullArgs, "\r")
 			exec.Command("tmux", fullArgs...).Run()
@@ -441,7 +442,7 @@ func main() {
 		for range ticker.C {
 			// 捕获 tmux 历史记录（完整历史，不只是可见区域）
 			// -S -5000 从最后 5000 行开始捕获
-			cmd := exec.Command("tmux", "capture-pane", "-t", sessionName, "-p", "-e", "-S", "-5000")
+			cmd := exec.Command("tmux", "-u", "capture-pane", "-t", sessionName, "-p", "-e", "-S", "-5000")
 			out, err := cmd.Output()
 			if err != nil {
 				continue
