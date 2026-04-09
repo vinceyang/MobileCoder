@@ -5,7 +5,9 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"time"
 
+	cloudauth "github.com/mobile-coder/cloud/internal/auth"
 	"github.com/mobile-coder/cloud/internal/config"
 	"github.com/mobile-coder/cloud/internal/db"
 	"github.com/mobile-coder/cloud/internal/handler"
@@ -80,15 +82,16 @@ func main() {
 	// Initialize services
 	deviceService := service.NewDeviceService(database)
 	hub := ws.NewHub()
+	tokenManager := cloudauth.NewManager(cfg.JWTSecret, 24*time.Hour)
 
 	// Start WebSocket hub
 	go hub.Run()
 
 	// Initialize handlers
-	deviceHandler := handler.NewDeviceHandler(deviceService)
+	deviceHandler := handler.NewDeviceHandler(deviceService, tokenManager)
 	authService := service.NewAuthService(database)
-	authHandler := handler.NewAuthHandler(authService)
-	wsHandler := handler.NewWSHubHandler(hub, deviceService)
+	authHandler := handler.NewAuthHandler(authService, tokenManager)
+	wsHandler := handler.NewWSHubHandler(hub, deviceService, tokenManager)
 
 	// Routes
 	mux := http.NewServeMux()
@@ -119,6 +122,13 @@ func main() {
 
 	// WebSocket
 	mux.HandleFunc("/ws", wsHandler.HandleConnection)
+
+	// Health check
+	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"status":"ok"}`))
+	})
 
 	// Wrap with CORS
 	handler := corsMiddleware(mux)
