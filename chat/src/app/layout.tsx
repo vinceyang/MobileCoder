@@ -1,13 +1,7 @@
 import type { Metadata } from "next";
-import { Geist } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/sonner";
 import { ThemeProvider } from "@/components/theme-provider";
-
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
 
 export const metadata: Metadata = {
   title: "Mobile Coder",
@@ -24,7 +18,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${geistSans.variable} antialiased dark`} style={{ backgroundColor: '#111827', color: '#ffffff' }}>
+      <body className="antialiased dark" style={{ backgroundColor: '#111827', color: '#ffffff' }}>
         <ThemeProvider
           attribute="class"
           defaultTheme="dark"

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useMemo } from 'react';
 import AnsiToHtml from 'ansi-to-html';
+import { getWsBaseUrl } from '@/lib/api';
 
 interface TerminalProps {
   deviceId: string;
@@ -22,10 +23,7 @@ const getWSUrl = (deviceId: string, sessionName: string, token: string) => {
   if (sessionName) {
     params.append('session_name', sessionName);
   }
-  if (typeof window === 'undefined') return `ws://localhost:8080/ws?${params.toString()}`;
-  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-  const hostname = window.location.hostname;
-  return `${protocol}//${hostname}:8080/ws?${params.toString()}`;
+  return `${getWsBaseUrl()}/ws?${params.toString()}`;
 };
 
 // 检测是否为移动端
@@ -37,6 +35,8 @@ export default function Terminal({ deviceId, sessionName, onConnectionChange }: 
   const [connected, setConnected] = useState(false);
   const [mode, setMode] = useState<'text' | 'keys'>(isMobile ? 'keys' : 'text');
   const [lastKey, setLastKey] = useState<string>('');
+  const [showScrollTop, setShowScrollTop] = useState(false);
+  const [showScrollBottom, setShowScrollBottom] = useState(false);
   const wsRef = useRef<WebSocket | null>(null);
   const outputRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -140,11 +140,41 @@ export default function Terminal({ deviceId, sessionName, onConnectionChange }: 
     }
   }), []);
 
+  // 智能滚动：只在用户已经在底部时自动滚动
   useEffect(() => {
     if (outputRef.current) {
-      outputRef.current.scrollTop = outputRef.current.scrollHeight;
+      const el = outputRef.current;
+      // 检查是否接近底部（50px 范围内）
+      const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 50;
+
+      if (atBottom) {
+        el.scrollTop = el.scrollHeight;
+      }
+      setShowScrollTop(el.scrollTop > 100);
+      setShowScrollBottom(!atBottom);
     }
   }, [output]);
+
+  const handleScroll = () => {
+    if (outputRef.current) {
+      const el = outputRef.current;
+      const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 50;
+      setShowScrollTop(el.scrollTop > 100);
+      setShowScrollBottom(!atBottom);
+    }
+  };
+
+  const scrollToTop = () => {
+    if (outputRef.current) {
+      outputRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
+
+  const scrollToBottom = () => {
+    if (outputRef.current) {
+      outputRef.current.scrollTo({ top: outputRef.current.scrollHeight, behavior: 'smooth' });
+    }
+  };
 
   // 发送按键到服务器
   const sendKey = (key: string, modifiers: string[] = []) => {
@@ -217,10 +247,11 @@ export default function Terminal({ deviceId, sessionName, onConnectionChange }: 
   ];
 
   return (
-    <div className="h-full flex flex-col overflow-hidden" style={{ backgroundColor: '#111827' }}>
+    <div className="h-full flex flex-col overflow-hidden relative" style={{ backgroundColor: '#111827' }}>
       {/* 终端输出区域 */}
       <div
         ref={outputRef}
+        onScroll={handleScroll}
         className="flex-1 overflow-auto p-2 md:p-4"
         style={{ WebkitOverflowScrolling: 'touch' }}
       >
@@ -235,6 +266,26 @@ export default function Terminal({ deviceId, sessionName, onConnectionChange }: 
           />
         )}
       </div>
+
+      {/* 滚动按钮 */}
+      {showScrollTop && (
+        <button
+          onClick={scrollToTop}
+          className="absolute right-4 bottom-24 w-10 h-10 rounded-full flex items-center justify-center text-lg"
+          style={{ backgroundColor: 'rgba(59, 130, 246, 0.9)', color: '#ffffff' }}
+        >
+          ↑
+        </button>
+      )}
+      {showScrollBottom && (
+        <button
+          onClick={scrollToBottom}
+          className="absolute right-4 bottom-48 w-10 h-10 rounded-full flex items-center justify-center text-lg"
+          style={{ backgroundColor: 'rgba(59, 130, 246, 0.9)', color: '#ffffff' }}
+        >
+          ↓
+        </button>
+      )}
 
       {/* 按键反馈提示 */}
       {lastKey && (

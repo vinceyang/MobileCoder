@@ -1,0 +1,30 @@
+const DEFAULT_API_PORT = '8080'
+
+function trimTrailingSlash(value: string): string {
+  return value.replace(/\/+$/, '')
+}
+
+export function getApiBaseUrl(): string {
+  const configured = process.env.NEXT_PUBLIC_API_URL
+  if (configured) {
+    return trimTrailingSlash(configured)
+  }
+
+  if (typeof window !== 'undefined') {
+    const { protocol, hostname } = window.location
+    return `${protocol}//${hostname}:${DEFAULT_API_PORT}`
+  }
+
+  return `http://localhost:${DEFAULT_API_PORT}`
+}
+
+export function getWsBaseUrl(): string {
+  const apiUrl = getApiBaseUrl()
+  if (apiUrl.startsWith('https://')) {
+    return `wss://${apiUrl.slice('https://'.length)}`
+  }
+  if (apiUrl.startsWith('http://')) {
+    return `ws://${apiUrl.slice('http://'.length)}`
+  }
+  return apiUrl
+}

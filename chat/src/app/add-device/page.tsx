@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { getApiBaseUrl } from '@/lib/api';
 
 export default function AddDevicePage() {
   const [bindCode, setBindCode] = useState('');
@@ -30,17 +31,12 @@ export default function AddDevicePage() {
     setLoading(true);
     setError('');
 
-    const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
-
-    console.log('Binding device with:', { API_URL, token, bindCode });
-
     // Create an AbortController with timeout
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 10000);
 
     try {
-      console.log('Making bind request to:', `${API_URL}/api/device/bind`);
-      const res = await fetch(`${API_URL}/api/device/bind`, {
+      const res = await fetch(`${getApiBaseUrl()}/api/device/bind`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -52,10 +48,8 @@ export default function AddDevicePage() {
 
       clearTimeout(timeoutId);
 
-      console.log('Response status:', res.status);
       let data;
       const text = await res.text();
-      console.log('Response text:', text);
       try {
         data = JSON.parse(text);
       } catch (e) {
@@ -65,7 +59,6 @@ export default function AddDevicePage() {
         setLoading(false);
         return;
       }
-      console.log('Response data:', data);
 
       if (res.ok && data.device_id) {
         router.push('/devices');

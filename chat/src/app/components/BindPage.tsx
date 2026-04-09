@@ -2,11 +2,11 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { getApiBaseUrl } from '@/lib/api';
 
 // 获取 API 地址 - 支持手机端访问
 const getAPIUrl = () => {
-  if (typeof window === 'undefined') return 'http://localhost:8080';
-  return process.env.NEXT_PUBLIC_API_URL || `${window.location.protocol}//${window.location.hostname}:8080`;
+  return getApiBaseUrl();
 };
 
 // 获取服务器地址用于显示
@@ -28,15 +28,21 @@ export default function BindPage({ onBind }: { onBind: (deviceId: string) => voi
 
   const handleBind = async () => {
     if (!bindCode) return;
+    const token = localStorage.getItem('token') || '';
+    if (!token) {
+      setError('请先登录');
+      router.push('/login');
+      return;
+    }
     setLoading(true);
     setError('');
     try {
       const API_URL = getAPIUrl();
-      // 简化版：无需 token，直接绑定
       const res = await fetch(`${API_URL}/api/device/bind`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': token,
         },
         body: JSON.stringify({ bind_code: bindCode }),
       });

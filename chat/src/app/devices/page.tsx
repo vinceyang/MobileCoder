@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { getApiBaseUrl } from '@/lib/api';
 
 interface Device {
   ID: number;
@@ -26,18 +27,13 @@ export default function DevicesPage() {
   }, []);
 
   const fetchDevices = async () => {
-    const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
     const token = localStorage.getItem('token') || '';
 
-    console.log('Fetching devices:', { API_URL, token });
-
     try {
-      const res = await fetch(`${API_URL}/api/devices`, {
+      const res = await fetch(`${getApiBaseUrl()}/api/devices`, {
         headers: { 'Authorization': token },
       });
-      console.log('Devices response status:', res.status);
       const data = await res.json();
-      console.log('Devices data:', data);
       setDevices(data.devices || []);
     } catch (err) {
       console.error('Fetch devices error:', err);

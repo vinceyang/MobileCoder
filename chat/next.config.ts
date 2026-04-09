@@ -7,14 +7,14 @@ import type { NextConfig } from "next";
 const deploymentType = process.env.NEXT_DEPLOYMENT_TYPE;
 const isDev = process.env.NODE_ENV !== "production";
 const useStandalone = deploymentType === "docker";
-const useExport = !isDev && !useStandalone;
+const useExport = deploymentType === "github-pages";
 
 const nextConfig: NextConfig = {
   // Disable devtools overlay in development
   devIndicators: false,
 
   // Output mode based on deployment type
-  output: isDev ? undefined : (useStandalone ? "standalone" : "export"),
+  output: isDev ? undefined : (useStandalone ? "standalone" : (useExport ? "export" : undefined)),
 
   // Disable image optimization for static exports
   images: {
