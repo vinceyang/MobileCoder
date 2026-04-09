@@ -1,4 +1,4 @@
-const API_URL = 'http://121.41.69.142:8080'
+import { getApiBaseUrl } from '../config/api'
 
 export interface LoginResponse {
   token: string
@@ -7,7 +7,7 @@ export interface LoginResponse {
 }
 
 export async function login(email: string, password: string): Promise<LoginResponse> {
-  const res = await fetch(`${API_URL}/api/auth/login`, {
+  const res = await fetch(`${getApiBaseUrl()}/api/auth/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email, password }),
@@ -20,7 +20,7 @@ export async function login(email: string, password: string): Promise<LoginRespo
 }
 
 export async function register(email: string, password: string): Promise<LoginResponse> {
-  const res = await fetch(`${API_URL}/api/auth/register`, {
+  const res = await fetch(`${getApiBaseUrl()}/api/auth/register`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email, password }),

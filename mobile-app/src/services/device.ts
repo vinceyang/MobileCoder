@@ -1,4 +1,4 @@
-const API_URL = 'http://121.41.69.142:8080'
+import { getApiBaseUrl } from '../config/api'
 
 function getToken() {
   return localStorage.getItem('token') || ''
@@ -22,7 +22,7 @@ export interface Session {
 
 export async function getDevices(): Promise<Device[]> {
   const token = getToken()
-  const res = await fetch(`${API_URL}/api/devices`, {
+  const res = await fetch(`${getApiBaseUrl()}/api/devices`, {
     headers: { 'Authorization': token },
   })
   if (!res.ok) throw new Error('Failed to fetch devices')
@@ -32,7 +32,7 @@ export async function getDevices(): Promise<Device[]> {
 
 export async function getDeviceSessions(deviceId: string): Promise<Session[]> {
   const token = getToken()
-  const res = await fetch(`${API_URL}/api/devices/sessions?device_id=${deviceId}`, {
+  const res = await fetch(`${getApiBaseUrl()}/api/devices/sessions?device_id=${deviceId}`, {
     headers: { 'Authorization': token },
   })
   if (!res.ok) throw new Error('Failed to fetch sessions')

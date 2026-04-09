@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { getWsBaseUrl } from '../config/api'
 
 interface TerminalProps {
   deviceId: string
@@ -11,14 +12,12 @@ interface KeyButton {
   description?: string
 }
 
-const WS_SERVER = 'ws://121.41.69.142:8080'
-
 const getWSUrl = (deviceId: string, sessionName: string, token: string) => {
   const params = new URLSearchParams({ device_id: deviceId, token })
   if (sessionName) {
     params.append('session_name', sessionName)
   }
-  return `${WS_SERVER}/ws?${params.toString()}`
+  return `${getWsBaseUrl()}/ws?${params.toString()}`
 }
 
 export default function Terminal({ deviceId }: TerminalProps) {
