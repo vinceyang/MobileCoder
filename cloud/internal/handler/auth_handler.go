@@ -2,19 +2,19 @@ package handler
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
-	"time"
 
+	cloudauth "github.com/mobile-coder/cloud/internal/auth"
 	"github.com/mobile-coder/cloud/internal/service"
 )
 
 type AuthHandler struct {
 	authService *service.AuthService
+	tokenManager *cloudauth.Manager
 }
 
-func NewAuthHandler(authService *service.AuthService) *AuthHandler {
-	return &AuthHandler{authService: authService}
+func NewAuthHandler(authService *service.AuthService, tokenManager *cloudauth.Manager) *AuthHandler {
+	return &AuthHandler{authService: authService, tokenManager: tokenManager}
 }
 
 type RegisterRequest struct {
@@ -56,8 +56,11 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// 生成简单的 token (实际应该用 JWT)
-	token := generateToken(user.ID, user.Email)
+	token, err := h.tokenManager.Issue(user.ID, user.Email)
+	if err != nil {
+		http.Error(w, "failed to issue token", http.StatusInternalServerError)
+		return
+	}
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(AuthResponse{
@@ -81,7 +84,11 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	token := generateToken(user.ID, user.Email)
+	token, err := h.tokenManager.Issue(user.ID, user.Email)
+	if err != nil {
+		http.Error(w, "failed to issue token", http.StatusInternalServerError)
+		return
+	}
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(AuthResponse{
@@ -90,9 +97,4 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		Token:   token,
 		Message: "login successful",
 	})
-}
-
-// generateToken 生成简单的 token (实际应使用 JWT)
-func generateToken(userID int64, email string) string {
-	return fmt.Sprintf("token_%d_%s_%d", userID, email, time.Now().Unix())
 }

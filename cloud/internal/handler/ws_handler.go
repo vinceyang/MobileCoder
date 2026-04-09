@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"github.com/gorilla/websocket"
+	cloudauth "github.com/mobile-coder/cloud/internal/auth"
 	"github.com/mobile-coder/cloud/internal/service"
 	"github.com/mobile-coder/cloud/internal/ws"
 )
@@ -17,12 +18,14 @@ var upgrader = websocket.Upgrader{
 type WSHubHandler struct {
 	hub           *ws.Hub
 	deviceService *service.DeviceService
+	tokenManager  *cloudauth.Manager
 }
 
-func NewWSHubHandler(hub *ws.Hub, deviceService *service.DeviceService) *WSHubHandler {
+func NewWSHubHandler(hub *ws.Hub, deviceService *service.DeviceService, tokenManager *cloudauth.Manager) *WSHubHandler {
 	return &WSHubHandler{
 		hub:           hub,
 		deviceService: deviceService,
+		tokenManager:  tokenManager,
 	}
 }
 
@@ -43,9 +46,21 @@ func (h *WSHubHandler) HandleConnection(w http.ResponseWriter, r *http.Request) 
 	// - 无 token: Desktop Agent（发送终端输出）
 	var userID int64
 	if token != "" {
-		// 简单的 token 解析（不验证，仅用于标识）
-		// 后续可以通过其他方式实现用户识别
-		log.Printf("WS: viewer connected with token")
+		claims, err := requireClaims(token, h.tokenManager)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusUnauthorized)
+			return
+		}
+		device, err := h.deviceService.GetDeviceByDeviceID(deviceID)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusNotFound)
+			return
+		}
+		if err := ensureDeviceOwnership(device, claims.UserID); err != nil {
+			http.Error(w, err.Error(), http.StatusForbidden)
+			return
+		}
+		userID = claims.UserID
 	}
 
 	conn, err := upgrader.Upgrade(w, r, nil)

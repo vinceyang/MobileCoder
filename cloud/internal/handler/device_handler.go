@@ -2,38 +2,22 @@ package handler
 
 import (
 	"encoding/json"
-	"errors"
 	"log"
 	"net/http"
-	"strconv"
-	"strings"
 
+	cloudauth "github.com/mobile-coder/cloud/internal/auth"
 	"github.com/mobile-coder/cloud/internal/service"
 )
 
-// parseToken 解析 token 获取 userID
-// 格式: "token_userID_email_timestamp"
-func parseToken(token string) (int64, error) {
-	// 格式: "token_userID_email_timestamp"
-	parts := strings.Split(token, "_")
-	if len(parts) < 3 {
-		return 0, errors.New("invalid token format")
-	}
-	// parts[0] = "token", parts[1] = userID, parts[2] = email
-	userID, err := strconv.ParseInt(parts[1], 10, 64)
-	if err != nil {
-		return 0, errors.New("invalid token format")
-	}
-	return userID, nil
-}
-
 type DeviceHandler struct {
 	deviceService *service.DeviceService
+	tokenManager  *cloudauth.Manager
 }
 
-func NewDeviceHandler(deviceService *service.DeviceService) *DeviceHandler {
+func NewDeviceHandler(deviceService *service.DeviceService, tokenManager *cloudauth.Manager) *DeviceHandler {
 	return &DeviceHandler{
 		deviceService: deviceService,
+		tokenManager:  tokenManager,
 	}
 }
 
@@ -107,55 +91,19 @@ func (h *DeviceHandler) CreateBindCode(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *DeviceHandler) BindDevice(w http.ResponseWriter, r *http.Request) {
-	// 检查是否有 Authorization header，如果有则绑定到用户
-	token := r.Header.Get("Authorization")
-
 	var req BindRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "invalid request body", http.StatusBadRequest)
 		return
 	}
 
-	// 如果有 token，绑定到对应用户
-	if token != "" {
-		userID, err := parseToken(token)
-		if err != nil {
-			// 如果 token 无效，回退到简化版
-			device, err := h.deviceService.BindDeviceSimple(req.BindCode)
-			if err != nil {
-				w.Header().Set("Content-Type", "application/json")
-				w.WriteHeader(http.StatusBadRequest)
-				json.NewEncoder(w).Encode(map[string]interface{}{"error": err.Error()})
-				return
-			}
-			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(map[string]interface{}{
-				"device_id":   device.DeviceID,
-				"device_name": device.DeviceName,
-				"status":      device.Status,
-			})
-			return
-		}
-
-		// 绑定到指定用户
-		device, err := h.deviceService.BindDeviceToUser(req.BindCode, userID)
-		if err != nil {
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusBadRequest)
-			json.NewEncoder(w).Encode(map[string]interface{}{"error": err.Error()})
-			return
-		}
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]interface{}{
-			"device_id":   device.DeviceID,
-			"device_name": device.DeviceName,
-			"status":      device.Status,
-		})
+	claims, err := requireClaimsFromRequest(r, h.tokenManager)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
 	}
 
-	// 无 token，回退到简化版
-	device, err := h.deviceService.BindDeviceSimple(req.BindCode)
+	device, err := h.deviceService.BindDeviceToUser(req.BindCode, claims.UserID)
 	if err != nil {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusBadRequest)
@@ -235,20 +183,13 @@ func (h *DeviceHandler) CheckDevice(w http.ResponseWriter, r *http.Request) {
 
 // GetUserDevices 获取用户的所有设备
 func (h *DeviceHandler) GetUserDevices(w http.ResponseWriter, r *http.Request) {
-	// 从 header 获取 token，解析 userID
-	token := r.Header.Get("Authorization")
-	if token == "" {
-		http.Error(w, "unauthorized", http.StatusUnauthorized)
-		return
-	}
-
-	userID, err := parseToken(token)
+	claims, err := requireClaimsFromRequest(r, h.tokenManager)
 	if err != nil {
-		http.Error(w, "invalid token", http.StatusUnauthorized)
+		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
 	}
 
-	devices, err := h.deviceService.GetUserDevices(userID)
+	devices, err := h.deviceService.GetUserDevices(claims.UserID)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -262,9 +203,25 @@ func (h *DeviceHandler) GetUserDevices(w http.ResponseWriter, r *http.Request) {
 
 // GetDeviceSessions 获取设备的所有 Session
 func (h *DeviceHandler) GetDeviceSessions(w http.ResponseWriter, r *http.Request) {
+	claims, err := requireClaimsFromRequest(r, h.tokenManager)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusUnauthorized)
+		return
+	}
+
 	deviceID := r.URL.Query().Get("device_id")
 	if deviceID == "" {
 		http.Error(w, "device_id required", http.StatusBadRequest)
+		return
+	}
+
+	device, err := h.deviceService.GetDeviceByDeviceID(deviceID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusNotFound)
+		return
+	}
+	if err := ensureDeviceOwnership(device, claims.UserID); err != nil {
+		http.Error(w, err.Error(), http.StatusForbidden)
 		return
 	}
 
@@ -302,6 +259,22 @@ func (h *DeviceHandler) CreateSession(w http.ResponseWriter, r *http.Request) {
 
 	if req.DeviceID == "" || req.SessionName == "" {
 		http.Error(w, "device_id and session_name required", http.StatusBadRequest)
+		return
+	}
+
+	claims, err := requireClaimsFromRequest(r, h.tokenManager)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusUnauthorized)
+		return
+	}
+
+	device, err := h.deviceService.GetDeviceByDeviceID(req.DeviceID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusNotFound)
+		return
+	}
+	if err := ensureDeviceOwnership(device, claims.UserID); err != nil {
+		http.Error(w, err.Error(), http.StatusForbidden)
 		return
 	}
 
@@ -344,6 +317,11 @@ func (h *DeviceHandler) DeleteSession(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if _, err := requireClaimsFromRequest(r, h.tokenManager); err != nil {
+		http.Error(w, err.Error(), http.StatusUnauthorized)
+		return
+	}
+
 	err := h.deviceService.DeleteSession(req.SessionID)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -379,7 +357,22 @@ func (h *DeviceHandler) UpdateDevice(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err := h.deviceService.UpdateDeviceName(req.DeviceID, req.DeviceName)
+	claims, err := requireClaimsFromRequest(r, h.tokenManager)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusUnauthorized)
+		return
+	}
+	device, err := h.deviceService.GetDeviceByDeviceID(req.DeviceID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusNotFound)
+		return
+	}
+	if err := ensureDeviceOwnership(device, claims.UserID); err != nil {
+		http.Error(w, err.Error(), http.StatusForbidden)
+		return
+	}
+
+	err = h.deviceService.UpdateDeviceName(req.DeviceID, req.DeviceName)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -413,7 +406,22 @@ func (h *DeviceHandler) DeleteDevice(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err := h.deviceService.DeleteDevice(req.DeviceID)
+	claims, err := requireClaimsFromRequest(r, h.tokenManager)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusUnauthorized)
+		return
+	}
+	device, err := h.deviceService.GetDeviceByDeviceID(req.DeviceID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusNotFound)
+		return
+	}
+	if err := ensureDeviceOwnership(device, claims.UserID); err != nil {
+		http.Error(w, err.Error(), http.StatusForbidden)
+		return
+	}
+
+	err = h.deviceService.DeleteDevice(req.DeviceID)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
