@@ -1,6 +1,12 @@
 package service
 
-import "testing"
+import (
+	"sync"
+	"testing"
+	"time"
+
+	"github.com/mobile-coder/cloud/internal/db"
+)
 
 type fakeTaskDeviceSource struct {
 	devicesByUser    map[int64][]Device
@@ -9,6 +15,21 @@ type fakeTaskDeviceSource struct {
 
 type fakeTaskEventSource struct {
 	eventsByTask map[string][]TaskEvent
+}
+
+type fakeTaskNotificationEmitter struct {
+	mu    sync.Mutex
+	calls []taskNotificationCall
+}
+
+type taskNotificationCall struct {
+	userID      int64
+	eventType   NotificationEventType
+	taskID      string
+	deviceID    string
+	sessionName string
+	title       string
+	body        string
 }
 
 func (f *fakeTaskDeviceSource) GetUserDevices(userID int64) ([]Device, error) {
@@ -21,6 +42,46 @@ func (f *fakeTaskDeviceSource) GetDeviceSessions(deviceID string) ([]Session, er
 
 func (f *fakeTaskEventSource) GetRecentEvents(taskID string) []TaskEvent {
 	return f.eventsByTask[taskID]
+}
+
+func (f *fakeTaskNotificationEmitter) CreateNotification(userID int64, eventType NotificationEventType, taskID, deviceID, sessionName, title, body string) (*db.Notification, error) {
+	f.mu.Lock()
+	f.calls = append(f.calls, taskNotificationCall{
+		userID:      userID,
+		eventType:   eventType,
+		taskID:      taskID,
+		deviceID:    deviceID,
+		sessionName: sessionName,
+		title:       title,
+		body:        body,
+	})
+	f.mu.Unlock()
+
+	return &db.Notification{
+		ID:          int64(len(f.calls)),
+		UserID:      userID,
+		TaskID:      taskID,
+		DeviceID:    deviceID,
+		SessionName: sessionName,
+		EventType:   string(eventType),
+		Title:       title,
+		Body:        body,
+	}, nil
+}
+
+func (f *fakeTaskNotificationEmitter) callCount() int {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return len(f.calls)
+}
+
+func (f *fakeTaskNotificationEmitter) lastCall() taskNotificationCall {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if len(f.calls) == 0 {
+		return taskNotificationCall{}
+	}
+	return f.calls[len(f.calls)-1]
 }
 
 func TestTaskServiceListTasksForUser(t *testing.T) {
@@ -248,5 +309,181 @@ func TestTaskServiceUsesCompletedEventKindForCompletedState(t *testing.T) {
 	}
 	if tasks[0].StateReason != "Recent output indicates the task has finished" {
 		t.Fatalf("tasks[0].StateReason = %q, want %q", tasks[0].StateReason, "Recent output indicates the task has finished")
+	}
+}
+
+func TestTaskServiceEmitsCompletedNotificationOnceOnCompletionTransition(t *testing.T) {
+	source := &fakeTaskDeviceSource{
+		devicesByUser: map[int64][]Device{
+			7: {
+				{DeviceID: "dev-1", DeviceName: "MacBook", Status: "online", LastActiveAt: "2026-04-10T09:30:00Z"},
+			},
+		},
+		sessionsByDevice: map[string][]Session{
+			"dev-1": {
+				{ID: 10, DeviceID: "dev-1", SessionName: "ship", ProjectPath: "/Users/me/repo-a", Status: "active", CreatedAt: "2026-04-10T09:00:00Z"},
+			},
+		},
+	}
+	emitter := &fakeTaskNotificationEmitter{}
+	service := NewTaskService(source, &fakeTaskEventSource{})
+	service.notificationEmitter = emitter
+	service.now = func() time.Time {
+		return time.Date(2026, 4, 10, 9, 35, 0, 0, time.UTC)
+	}
+
+	if _, err := service.ListTasksForUser(7); err != nil {
+		t.Fatalf("ListTasksForUser running returned error: %v", err)
+	}
+	if emitter.callCount() != 0 {
+		t.Fatalf("callCount = %d, want 0 before completion", emitter.callCount())
+	}
+
+	source.sessionsByDevice["dev-1"][0].Status = "inactive"
+	if _, err := service.ListTasksForUser(7); err != nil {
+		t.Fatalf("ListTasksForUser completed returned error: %v", err)
+	}
+	if emitter.callCount() != 1 {
+		t.Fatalf("callCount = %d, want 1 after completion", emitter.callCount())
+	}
+	if emitter.lastCall().eventType != NotificationEventTaskCompleted {
+		t.Fatalf("eventType = %q, want %q", emitter.lastCall().eventType, NotificationEventTaskCompleted)
+	}
+
+	if _, err := service.ListTasksForUser(7); err != nil {
+		t.Fatalf("ListTasksForUser duplicate returned error: %v", err)
+	}
+	if emitter.callCount() != 1 {
+		t.Fatalf("callCount = %d, want 1 after duplicate completed state", emitter.callCount())
+	}
+}
+
+func TestTaskServiceEmitsWaitingNotificationOnceOnWaitingTransition(t *testing.T) {
+	source := &fakeTaskDeviceSource{
+		devicesByUser: map[int64][]Device{
+			7: {
+				{DeviceID: "dev-1", DeviceName: "MacBook", Status: "online", LastActiveAt: "2026-04-10T09:30:00Z"},
+			},
+		},
+		sessionsByDevice: map[string][]Session{
+			"dev-1": {
+				{ID: 10, DeviceID: "dev-1", SessionName: "review", ProjectPath: "/Users/me/repo-a", Status: "active", CreatedAt: "2026-04-10T09:00:00Z"},
+			},
+		},
+	}
+	emitter := &fakeTaskNotificationEmitter{}
+	service := NewTaskService(source, &fakeTaskEventSource{})
+	service.notificationEmitter = emitter
+	service.now = func() time.Time {
+		return time.Date(2026, 4, 10, 9, 35, 0, 0, time.UTC)
+	}
+
+	if _, err := service.ListTasksForUser(7); err != nil {
+		t.Fatalf("ListTasksForUser running returned error: %v", err)
+	}
+	if emitter.callCount() != 0 {
+		t.Fatalf("callCount = %d, want 0 before waiting", emitter.callCount())
+	}
+
+	source.sessionsByDevice["dev-1"][0].Status = "waiting_input"
+	if _, err := service.ListTasksForUser(7); err != nil {
+		t.Fatalf("ListTasksForUser waiting returned error: %v", err)
+	}
+	if emitter.callCount() != 1 {
+		t.Fatalf("callCount = %d, want 1 after waiting", emitter.callCount())
+	}
+	if emitter.lastCall().eventType != NotificationEventTaskWaitingInput {
+		t.Fatalf("eventType = %q, want %q", emitter.lastCall().eventType, NotificationEventTaskWaitingInput)
+	}
+
+	if _, err := service.ListTasksForUser(7); err != nil {
+		t.Fatalf("ListTasksForUser duplicate waiting returned error: %v", err)
+	}
+	if emitter.callCount() != 1 {
+		t.Fatalf("callCount = %d, want 1 after duplicate waiting state", emitter.callCount())
+	}
+}
+
+func TestTaskServiceEmitsIdleTooLongNotificationOnceForStaleRunningTask(t *testing.T) {
+	source := &fakeTaskDeviceSource{
+		devicesByUser: map[int64][]Device{
+			7: {
+				{DeviceID: "dev-1", DeviceName: "MacBook", Status: "online", LastActiveAt: "2026-04-10T09:00:00Z"},
+			},
+		},
+		sessionsByDevice: map[string][]Session{
+			"dev-1": {
+				{ID: 10, DeviceID: "dev-1", SessionName: "idle", ProjectPath: "/Users/me/repo-a", Status: "active", CreatedAt: "2026-04-10T09:00:00Z"},
+			},
+		},
+	}
+	emitter := &fakeTaskNotificationEmitter{}
+	service := NewTaskService(source, &fakeTaskEventSource{})
+	service.notificationEmitter = emitter
+	service.now = func() time.Time {
+		return time.Date(2026, 4, 10, 9, 20, 0, 0, time.UTC)
+	}
+
+	if _, err := service.ListTasksForUser(7); err != nil {
+		t.Fatalf("ListTasksForUser idle returned error: %v", err)
+	}
+	if emitter.callCount() != 1 {
+		t.Fatalf("callCount = %d, want 1 after idle-too-long", emitter.callCount())
+	}
+	if emitter.lastCall().eventType != NotificationEventTaskIdleTooLong {
+		t.Fatalf("eventType = %q, want %q", emitter.lastCall().eventType, NotificationEventTaskIdleTooLong)
+	}
+
+	if _, err := service.ListTasksForUser(7); err != nil {
+		t.Fatalf("ListTasksForUser duplicate idle returned error: %v", err)
+	}
+	if emitter.callCount() != 1 {
+		t.Fatalf("callCount = %d, want 1 after duplicate idle state", emitter.callCount())
+	}
+}
+
+func TestTaskServiceEmitsDisconnectedNotificationOnceWhenDeviceGoesOffline(t *testing.T) {
+	source := &fakeTaskDeviceSource{
+		devicesByUser: map[int64][]Device{
+			7: {
+				{DeviceID: "dev-1", DeviceName: "MacBook", Status: "online", LastActiveAt: "2026-04-10T09:30:00Z"},
+			},
+		},
+		sessionsByDevice: map[string][]Session{
+			"dev-1": {
+				{ID: 10, DeviceID: "dev-1", SessionName: "disconnect", ProjectPath: "/Users/me/repo-a", Status: "active", CreatedAt: "2026-04-10T09:00:00Z"},
+			},
+		},
+	}
+	emitter := &fakeTaskNotificationEmitter{}
+	service := NewTaskService(source, &fakeTaskEventSource{})
+	service.notificationEmitter = emitter
+	service.now = func() time.Time {
+		return time.Date(2026, 4, 10, 9, 35, 0, 0, time.UTC)
+	}
+
+	if _, err := service.ListTasksForUser(7); err != nil {
+		t.Fatalf("ListTasksForUser online returned error: %v", err)
+	}
+	if emitter.callCount() != 0 {
+		t.Fatalf("callCount = %d, want 0 before disconnect", emitter.callCount())
+	}
+
+	source.devicesByUser[7][0].Status = "offline"
+	if _, err := service.ListTasksForUser(7); err != nil {
+		t.Fatalf("ListTasksForUser offline returned error: %v", err)
+	}
+	if emitter.callCount() != 1 {
+		t.Fatalf("callCount = %d, want 1 after disconnect", emitter.callCount())
+	}
+	if emitter.lastCall().eventType != NotificationEventAgentDisconnected {
+		t.Fatalf("eventType = %q, want %q", emitter.lastCall().eventType, NotificationEventAgentDisconnected)
+	}
+
+	if _, err := service.ListTasksForUser(7); err != nil {
+		t.Fatalf("ListTasksForUser duplicate offline returned error: %v", err)
+	}
+	if emitter.callCount() != 1 {
+		t.Fatalf("callCount = %d, want 1 after duplicate offline state", emitter.callCount())
 	}
 }
