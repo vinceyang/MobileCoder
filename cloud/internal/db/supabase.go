@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"strings"
 )
 
 type Config struct {
@@ -178,12 +179,27 @@ type Session struct {
 	CreatedAt   string `json:"created_at"`
 }
 
+// Notification represents a persisted control tower notification record.
+type Notification struct {
+	ID          int64  `json:"id"`
+	UserID      int64  `json:"user_id"`
+	TaskID      string `json:"task_id"`
+	DeviceID    string `json:"device_id"`
+	SessionName string `json:"session_name"`
+	EventType   string `json:"event_type"`
+	Title       string `json:"title"`
+	Body        string `json:"body"`
+	DedupeKey   string `json:"dedupe_key"`
+	ReadAt      string `json:"read_at"`
+	CreatedAt   string `json:"created_at"`
+}
+
 func (s *SupabaseDB) CreateSession(deviceID, sessionName, projectPath string) (*Session, error) {
 	body, _ := json.Marshal(map[string]interface{}{
-		"device_id":     deviceID,
-		"session_name":  sessionName,
-		"project_path":  projectPath,
-		"status":        "active",
+		"device_id":    deviceID,
+		"session_name": sessionName,
+		"project_path": projectPath,
+		"status":       "active",
 	})
 
 	resp, err := s.do("POST", "/sessions", body)
@@ -393,6 +409,106 @@ func (s *SupabaseDB) ListAllDevices() ([]Device, error) {
 	var devices []Device
 	json.Unmarshal(resp, &devices)
 	return devices, nil
+}
+
+// Notification operations
+func (s *SupabaseDB) CreateNotification(notification *Notification) (*Notification, error) {
+	body, _ := json.Marshal(map[string]interface{}{
+		"user_id":      notification.UserID,
+		"task_id":      notification.TaskID,
+		"device_id":    notification.DeviceID,
+		"session_name": notification.SessionName,
+		"event_type":   notification.EventType,
+		"title":        notification.Title,
+		"body":         notification.Body,
+		"dedupe_key":   notification.DedupeKey,
+	})
+
+	resp, err := s.do("POST", "/notifications", body)
+	if err != nil {
+		return nil, err
+	}
+
+	var notifications []Notification
+	json.Unmarshal(resp, &notifications)
+	if len(notifications) == 0 {
+		return nil, fmt.Errorf("notification not created")
+	}
+	return &notifications[0], nil
+}
+
+func (s *SupabaseDB) ListNotificationsByUser(userID int64, limit int, since string, unreadOnly bool) ([]Notification, error) {
+	query := []string{
+		"user_id=eq." + fmt.Sprintf("%d", userID),
+		"order=created_at.desc",
+	}
+	if limit > 0 {
+		query = append(query, fmt.Sprintf("limit=%d", limit))
+	}
+	if since != "" {
+		query = append(query, "created_at=gte."+url.QueryEscape(since))
+	}
+	if unreadOnly {
+		query = append(query, "read_at=is.null")
+	}
+
+	resp, err := s.do("GET", "/notifications?select=*&"+strings.Join(query, "&"), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var notifications []Notification
+	json.Unmarshal(resp, &notifications)
+	return notifications, nil
+}
+
+func (s *SupabaseDB) GetNotificationByID(notificationID int64) (*Notification, error) {
+	resp, err := s.do("GET", "/notifications?id=eq."+fmt.Sprintf("%d", notificationID), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var notifications []Notification
+	json.Unmarshal(resp, &notifications)
+	if len(notifications) == 0 {
+		return nil, nil
+	}
+	return &notifications[0], nil
+}
+
+func (s *SupabaseDB) GetLatestNotificationByDedupeKey(userID int64, dedupeKey string) (*Notification, error) {
+	resp, err := s.do("GET", "/notifications?user_id=eq."+fmt.Sprintf("%d", userID)+"&dedupe_key=eq."+url.QueryEscape(dedupeKey)+"&order=created_at.desc&limit=1", nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var notifications []Notification
+	json.Unmarshal(resp, &notifications)
+	if len(notifications) == 0 {
+		return nil, nil
+	}
+	return &notifications[0], nil
+}
+
+func (s *SupabaseDB) MarkNotificationRead(notificationID int64, readAt string) error {
+	body, _ := json.Marshal(map[string]interface{}{
+		"read_at": readAt,
+	})
+	_, err := s.do("PATCH", "/notifications?id=eq."+fmt.Sprintf("%d", notificationID), body)
+	return err
+}
+
+func (s *SupabaseDB) MarkAllNotificationsRead(userID int64, readAt string) error {
+	body, _ := json.Marshal(map[string]interface{}{
+		"read_at": readAt,
+	})
+	_, err := s.do("PATCH", "/notifications?user_id=eq."+fmt.Sprintf("%d", userID)+"&read_at=is.null", body)
+	return err
+}
+
+func (s *SupabaseDB) DeleteNotificationsBefore(userID int64, cutoff string) error {
+	_, err := s.do("DELETE", "/notifications?user_id=eq."+fmt.Sprintf("%d", userID)+"&created_at=lt."+url.QueryEscape(cutoff), nil)
+	return err
 }
 
 // UpdateDeviceName updates the device name
