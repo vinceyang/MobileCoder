@@ -80,9 +80,19 @@ export default function TaskDetailPage() {
     )
   }
 
-  const metadataItems: Array<{ label: string; value: string; valueClassName?: string }> = [
-    { label: '最近事件', value: task.recent_event },
-    { label: '项目路径', value: task.project_path || '未提供', valueClassName: 'break-all' },
+  const metadataItems: Array<{
+    label: string
+    value: string
+    valueClassName?: string
+    cardClassName?: string
+  }> = [
+    { label: '最近事件', value: task.recent_event, cardClassName: 'col-span-2' },
+    {
+      label: '项目路径',
+      value: task.project_path || '未提供',
+      valueClassName: 'break-all text-[13px] leading-5 text-slate-300',
+      cardClassName: 'col-span-2',
+    },
     { label: '设备', value: task.device_name },
     { label: '会话', value: task.session_name },
     { label: '最近活动', value: formatActivityLabel(task.last_activity_at) },
@@ -98,8 +108,10 @@ export default function TaskDetailPage() {
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
               <p className="text-[11px] uppercase tracking-[0.24em] text-cyan-300">任务详情</p>
-              <h1 className="mt-3 text-3xl font-black tracking-tight text-slate-50">{task.title}</h1>
-              <p className="mt-2 text-sm text-slate-400">{task.state_reason}</p>
+              <h1 className="mt-3 break-words text-[2rem] font-black leading-[1.02] tracking-tight text-slate-50">
+                {task.title}
+              </h1>
+              <p className="mt-2 text-sm leading-6 text-slate-400">{task.state_reason}</p>
             </div>
             <span
               className={`whitespace-nowrap rounded-full px-2 py-1 text-[11px] ${taskStateStyles[task.state]}`}
@@ -118,7 +130,10 @@ export default function TaskDetailPage() {
             </div>
             <div className="mt-4 grid grid-cols-2 gap-3">
               {metadataItems.map((item) => (
-                <div key={item.label} className="rounded-2xl border border-cyan-400/10 bg-slate-950/80 px-3 py-3">
+                <div
+                  key={item.label}
+                  className={`rounded-2xl border border-cyan-400/10 bg-slate-950/80 px-3 py-3 ${item.cardClassName || ''}`}
+                >
                   <p className="text-[10px] uppercase tracking-[0.18em] text-slate-500">{item.label}</p>
                   <p className={`mt-2 text-sm text-slate-100 ${item.valueClassName || ''}`}>{item.value}</p>
                 </div>
