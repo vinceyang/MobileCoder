@@ -1,16 +1,12 @@
 @import "tailwindcss";
 
-/* Missing today:
-   - layered app background beyond flat #111827
-   - stronger text hierarchy defaults
-   - reusable glow/surface feel for the control-tower UI
-*/
-
 :root {
   color-scheme: dark;
 }
 
-* {
+*,
+*::before,
+*::after {
   -webkit-tap-highlight-color: transparent;
   box-sizing: border-box;
 }
