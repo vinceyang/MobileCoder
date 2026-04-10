@@ -52,8 +52,14 @@ export default function DevicesPage() {
     <div className="min-h-screen bg-gray-900 p-4">
       <div className="max-w-2xl mx-auto">
         <div className="flex justify-between items-center mb-6">
-          <h1 className="text-2xl text-white">我的设备</h1>
+          <div>
+            <p className="text-sm text-sky-300 uppercase tracking-[0.2em]">Secondary</p>
+            <h1 className="text-2xl text-white">我的设备</h1>
+          </div>
           <div className="space-x-4">
+            <button onClick={() => router.push('/tasks')} className="bg-gray-800 text-white px-4 py-2 rounded hover:bg-gray-700">
+              Tasks
+            </button>
             <button onClick={() => router.push('/add-device')} className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
               添加设备
             </button>

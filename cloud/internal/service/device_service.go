@@ -16,13 +16,14 @@ var (
 )
 
 type Device struct {
-	ID          int64
-	UserID      int64
-	DeviceID    string
-	DeviceName  string
-	BindCode    string
-	BindCodeExp time.Time
-	Status      string
+	ID           int64
+	UserID       int64
+	DeviceID     string
+	DeviceName   string
+	BindCode     string
+	BindCodeExp  time.Time
+	Status       string
+	LastActiveAt string
 }
 
 type Session struct {
@@ -31,6 +32,7 @@ type Session struct {
 	SessionName string
 	ProjectPath string
 	Status      string
+	CreatedAt   string
 }
 
 type DeviceService struct {
@@ -139,11 +141,12 @@ func (s *DeviceService) GetUserDevices(userID int64) ([]Device, error) {
 	var result []Device
 	for _, d := range devices {
 		result = append(result, Device{
-			ID:         d.ID,
-			UserID:     d.UserID,
-			DeviceID:   d.DeviceID,
-			DeviceName: d.DeviceName,
-			Status:     d.Status,
+			ID:           d.ID,
+			UserID:       d.UserID,
+			DeviceID:     d.DeviceID,
+			DeviceName:   d.DeviceName,
+			Status:       d.Status,
+			LastActiveAt: d.LastActiveAt,
 		})
 	}
 	return result, nil
@@ -297,11 +300,12 @@ func (s *DeviceService) GetDeviceByDeviceID(deviceID string) (*Device, error) {
 		return nil, ErrDeviceNotFound
 	}
 	return &Device{
-		ID:         device.ID,
-		UserID:     device.UserID,
-		DeviceID:   device.DeviceID,
-		DeviceName: device.DeviceName,
-		Status:     device.Status,
+		ID:           device.ID,
+		UserID:       device.UserID,
+		DeviceID:     device.DeviceID,
+		DeviceName:   device.DeviceName,
+		Status:       device.Status,
+		LastActiveAt: device.LastActiveAt,
 	}, nil
 }
 
@@ -320,6 +324,7 @@ func (s *DeviceService) GetDeviceSessions(deviceID string) ([]Session, error) {
 			SessionName: ses.SessionName,
 			ProjectPath: ses.ProjectPath,
 			Status:      ses.Status,
+			CreatedAt:   ses.CreatedAt,
 		})
 	}
 	return result, nil
@@ -338,6 +343,7 @@ func (s *DeviceService) CreateSession(deviceID, sessionName, projectPath string)
 		SessionName: session.SessionName,
 		ProjectPath: session.ProjectPath,
 		Status:      session.Status,
+		CreatedAt:   session.CreatedAt,
 	}, nil
 }
 
@@ -361,6 +367,7 @@ func (s *DeviceService) GetActiveSession(deviceID string) (*Session, error) {
 		SessionName: session.SessionName,
 		ProjectPath: session.ProjectPath,
 		Status:      session.Status,
+		CreatedAt:   session.CreatedAt,
 	}, nil
 }
 

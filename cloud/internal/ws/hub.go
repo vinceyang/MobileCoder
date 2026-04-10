@@ -3,9 +3,13 @@ package ws
 import (
 	"encoding/json"
 	"log"
+	"regexp"
+	"strings"
 	"sync"
+	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/mobile-coder/cloud/internal/service"
 )
 
 type Message struct {
@@ -23,19 +27,25 @@ type Client struct {
 }
 
 type Hub struct {
-	clients          map[string]map[*Client]bool  // key can be deviceID or sessionName
-	lastOutput       map[string][]byte             // deviceID -> last terminal output
-	mu               sync.RWMutex
-	register         chan *Client
-	unregister       chan *Client
+	clients       map[string]map[*Client]bool // key can be deviceID or sessionName
+	lastOutput    map[string][]byte           // deviceID -> last terminal output
+	recentEvents  map[string][]service.TaskEvent
+	lastEventLine map[string]string
+	mu            sync.RWMutex
+	register      chan *Client
+	unregister    chan *Client
 }
+
+var ansiSequencePattern = regexp.MustCompile(`\x1b\[[0-9;?]*[ -/]*[@-~]`)
 
 func NewHub() *Hub {
 	return &Hub{
-		clients:    make(map[string]map[*Client]bool),
-		lastOutput: make(map[string][]byte),
-		register:   make(chan *Client),
-		unregister: make(chan *Client),
+		clients:       make(map[string]map[*Client]bool),
+		lastOutput:    make(map[string][]byte),
+		recentEvents:  make(map[string][]service.TaskEvent),
+		lastEventLine: make(map[string]string),
+		register:      make(chan *Client),
+		unregister:    make(chan *Client),
 	}
 }
 
@@ -154,6 +164,8 @@ func (h *Hub) SendToAgents(deviceID string, sessionName string, message []byte) 
 // This prevents duplicate messages when multiple H5 pages are open
 // Uses sessionName if provided, otherwise falls back to deviceID
 func (h *Hub) BroadcastToViewers(deviceID string, sessionName string, message []byte) {
+	h.RecordTerminalOutput(deviceID, sessionName, message)
+
 	// Use sessionName as key if available
 	key := deviceID
 	if sessionName != "" {
@@ -188,6 +200,49 @@ func (h *Hub) BroadcastToViewers(deviceID string, sessionName string, message []
 	}
 }
 
+func (h *Hub) RecordTerminalOutput(deviceID string, sessionName string, message []byte) {
+	summary := extractLatestTerminalLine(message)
+	if summary == "" {
+		return
+	}
+
+	key := taskKey(deviceID, sessionName)
+
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	if h.lastEventLine[key] == summary {
+		return
+	}
+
+	h.lastEventLine[key] = summary
+	event := service.TaskEvent{
+		Summary:   summary,
+		Timestamp: time.Now().UTC().Format(time.RFC3339),
+		Kind:      classifyTaskEvent(summary),
+	}
+
+	events := append([]service.TaskEvent{event}, h.recentEvents[key]...)
+	if len(events) > 10 {
+		events = events[:10]
+	}
+	h.recentEvents[key] = events
+}
+
+func (h *Hub) GetRecentEvents(taskID string) []service.TaskEvent {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+
+	events := h.recentEvents[taskID]
+	if len(events) == 0 {
+		return nil
+	}
+
+	result := make([]service.TaskEvent, len(events))
+	copy(result, events)
+	return result
+}
+
 // SendLastOutput sends the last terminal output to a new viewer
 func (h *Hub) SendLastOutput(client *Client) {
 	h.mu.RLock()
@@ -219,5 +274,56 @@ func (h *Hub) BroadcastToDevice(deviceID string, message []byte) {
 			default:
 			}
 		}
+	}
+}
+
+func taskKey(deviceID string, sessionName string) string {
+	if sessionName == "" {
+		return deviceID
+	}
+	return deviceID + ":" + sessionName
+}
+
+func extractLatestTerminalLine(message []byte) string {
+	var envelope struct {
+		Type    string `json:"type"`
+		Payload struct {
+			Content string `json:"content"`
+		} `json:"payload"`
+	}
+
+	if err := json.Unmarshal(message, &envelope); err != nil {
+		return ""
+	}
+	if envelope.Type != "terminal_output" {
+		return ""
+	}
+
+	lines := strings.Split(envelope.Payload.Content, "\n")
+	for i := len(lines) - 1; i >= 0; i-- {
+		line := strings.TrimSpace(ansiSequencePattern.ReplaceAllString(lines[i], ""))
+		if line != "" {
+			return line
+		}
+	}
+	return ""
+}
+
+func classifyTaskEvent(summary string) service.TaskEventKind {
+	lower := strings.ToLower(summary)
+
+	switch {
+	case strings.Contains(lower, "task completed"), strings.Contains(lower, "completed successfully"), strings.Contains(lower, "done"), strings.Contains(lower, "finished successfully"):
+		return service.TaskEventKindCompleted
+	case strings.Contains(lower, "waiting for"), strings.Contains(lower, "confirm"), strings.Contains(lower, "press enter"), strings.Contains(lower, "select an option"):
+		return service.TaskEventKindNeedsInput
+	case strings.Contains(lower, "error"), strings.Contains(lower, "failed"), strings.Contains(lower, "panic"), strings.Contains(lower, "permission denied"):
+		return service.TaskEventKindError
+	case strings.Contains(lower, "tests passed"), strings.Contains(lower, "all green"), strings.Contains(lower, "test passed"), strings.Contains(lower, "test failed"), strings.Contains(lower, "failing tests"):
+		return service.TaskEventKindTestResult
+	case strings.Contains(lower, "updating "), strings.Contains(lower, "creating "), strings.Contains(lower, "applying "), strings.Contains(lower, "running "), strings.Contains(lower, "checking "), strings.Contains(lower, "installing "):
+		return service.TaskEventKindToolStep
+	default:
+		return service.TaskEventKindInfo
 	}
 }
