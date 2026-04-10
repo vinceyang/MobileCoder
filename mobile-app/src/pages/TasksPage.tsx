@@ -200,7 +200,7 @@ export default function TasksPage() {
           ) : visibleTasks.length === 0 ? (
             <div className={`${panelShellClass} mt-6 px-4 py-8 text-center text-slate-400`}>
               <p>当前没有匹配的任务</p>
-              <p className="mt-2 text-sm">打开设备页查看 Session，或等待 Agent 创建新任务。</p>
+              <p className="mt-2 text-sm">打开设备页查看当前会话，或等待系统创建新任务。</p>
             </div>
           ) : (
             <div className="space-y-3">
