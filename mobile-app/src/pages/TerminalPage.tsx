@@ -5,23 +5,26 @@ import Terminal from '../components/Terminal'
 export default function TerminalPage() {
   const [searchParams] = useSearchParams()
   const [deviceId, setDeviceId] = useState('')
+  const [taskId, setTaskId] = useState('')
   const navigate = useNavigate()
 
   useEffect(() => {
     const deviceIdParam = searchParams.get('device_id')
     const sessionNameParam = searchParams.get('session_name')
+    const taskIdParam = searchParams.get('task_id') || ''
 
     const id = deviceIdParam || localStorage.getItem('device_id')
     if (!id) {
-      navigate('/devices')
+      navigate('/tasks')
       return
     }
 
     setDeviceId(id)
+    setTaskId(taskIdParam)
     if (sessionNameParam) {
       localStorage.setItem('session_name', sessionNameParam)
     }
-  }, [searchParams])
+  }, [searchParams, navigate])
 
   if (!deviceId) {
     return (
@@ -35,7 +38,13 @@ export default function TerminalPage() {
     <div className="h-[100dvh] flex flex-col">
       <header className="flex items-center px-4 py-2 bg-gray-900 border-b border-gray-800">
         <button
-          onClick={() => navigate(`/devices/${deviceId}`)}
+          onClick={() => {
+            if (taskId) {
+              navigate(`/tasks/${encodeURIComponent(taskId)}`)
+              return
+            }
+            navigate(`/devices/${deviceId}`)
+          }}
           className="text-gray-400 hover:text-white text-xl mr-4"
         >
           ←

@@ -3,6 +3,8 @@ import LoginPage from './pages/LoginPage'
 import DevicesPage from './pages/DevicesPage'
 import DeviceDetailPage from './pages/DeviceDetailPage'
 import TerminalPage from './pages/TerminalPage'
+import TasksPage from './pages/TasksPage'
+import TaskDetailPage from './pages/TaskDetailPage'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const token = localStorage.getItem('token')
@@ -22,6 +24,16 @@ export default function App() {
             <DevicesPage />
           </ProtectedRoute>
         } />
+        <Route path="/tasks" element={
+          <ProtectedRoute>
+            <TasksPage />
+          </ProtectedRoute>
+        } />
+        <Route path="/tasks/:taskId" element={
+          <ProtectedRoute>
+            <TaskDetailPage />
+          </ProtectedRoute>
+        } />
         <Route path="/devices/:deviceId" element={
           <ProtectedRoute>
             <DeviceDetailPage />
@@ -32,7 +44,7 @@ export default function App() {
             <TerminalPage />
           </ProtectedRoute>
         } />
-        <Route path="/" element={<Navigate to="/devices" replace />} />
+        <Route path="/" element={<Navigate to="/tasks" replace />} />
       </Routes>
     </BrowserRouter>
   )

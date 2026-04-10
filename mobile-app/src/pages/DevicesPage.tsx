@@ -35,10 +35,18 @@ export default function DevicesPage() {
   return (
     <div className="min-h-screen bg-gray-900">
       <header className="flex items-center justify-between p-4 border-b border-gray-800">
-        <h1 className="text-xl font-bold">我的设备</h1>
-        <button onClick={handleLogout} className="text-gray-400 text-sm">
-          退出
-        </button>
+        <div>
+          <p className="text-xs text-sky-300 uppercase tracking-[0.2em]">Secondary View</p>
+          <h1 className="text-xl font-bold mt-2">设备</h1>
+        </div>
+        <div className="flex items-center gap-3">
+          <button onClick={() => navigate('/tasks')} className="text-sky-300 text-sm">
+            Tasks
+          </button>
+          <button onClick={handleLogout} className="text-gray-400 text-sm">
+            退出
+          </button>
+        </div>
       </header>
 
       <div className="p-4">
