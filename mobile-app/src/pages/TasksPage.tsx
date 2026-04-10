@@ -108,12 +108,18 @@ export default function TasksPage() {
                 <span className={`h-2.5 w-2.5 rounded-full ${hotTask ? 'bg-cyan-300 shadow-[0_0_18px_rgba(103,232,249,0.85)]' : 'bg-slate-600'}`} />
               </div>
               <div className="mt-3 flex items-center gap-2 text-[11px] text-slate-400">
-                <span className={`rounded-full px-2 py-1 ${taskEventKindStyles[hotTaskEventKind]}`}>
-                  {taskEventKindLabels[hotTaskEventKind]}
-                </span>
-                <span className="truncate">
-                  {hotTask ? formatActivityLabel(hotTask.last_activity_at) : 'Awaiting task activity'}
-                </span>
+                {hotTask ? (
+                  <>
+                    <span className={`rounded-full px-2 py-1 ${taskEventKindStyles[hotTaskEventKind]}`}>
+                      {taskEventKindLabels[hotTaskEventKind]}
+                    </span>
+                    <span className="truncate">{formatActivityLabel(hotTask.last_activity_at)}</span>
+                  </>
+                ) : (
+                  <span className="rounded-full border border-slate-700 bg-slate-900/80 px-2 py-1 text-slate-500">
+                    Neutral
+                  </span>
+                )}
               </div>
             </div>
             <div className="flex flex-col gap-2">
