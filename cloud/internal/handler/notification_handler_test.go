@@ -24,6 +24,11 @@ type fakeNotificationService struct {
 	markAllCalls  []int64
 }
 
+type fakeNotificationRefresher struct {
+	refreshFn    func(userID int64) error
+	refreshCalls []int64
+}
+
 type notificationListCall struct {
 	userID     int64
 	unreadOnly bool
@@ -68,6 +73,14 @@ func (f *fakeNotificationService) MarkAllNotificationsRead(userID int64) error {
 	return nil
 }
 
+func (f *fakeNotificationRefresher) RefreshNotificationsForUser(userID int64) error {
+	f.refreshCalls = append(f.refreshCalls, userID)
+	if f.refreshFn != nil {
+		return f.refreshFn(userID)
+	}
+	return nil
+}
+
 func newNotificationRequest(method, target string, body []byte, token string) *http.Request {
 	req := httptest.NewRequest(method, target, bytes.NewReader(body))
 	if token != "" {
@@ -76,7 +89,7 @@ func newNotificationRequest(method, target string, body []byte, token string) *h
 	return req
 }
 
-func newNotificationHandlerForTest(t *testing.T, svc notificationService) (*NotificationHandler, string) {
+func newNotificationHandlerForTest(t *testing.T, svc notificationService, refresher ...notificationRefresher) (*NotificationHandler, string) {
 	t.Helper()
 
 	manager := cloudauth.NewManager("test-secret", time.Hour)
@@ -85,7 +98,7 @@ func newNotificationHandlerForTest(t *testing.T, svc notificationService) (*Noti
 		t.Fatalf("Issue token: %v", err)
 	}
 
-	return NewNotificationHandler(svc, manager), token
+	return NewNotificationHandler(svc, manager, refresher...), token
 }
 
 func TestNotificationHandlerListNotifications(t *testing.T) {
@@ -128,6 +141,31 @@ func TestNotificationHandlerListNotifications(t *testing.T) {
 	}
 	if len(resp["notifications"]) != 1 {
 		t.Fatalf("len(notifications) = %d, want 1", len(resp["notifications"]))
+	}
+}
+
+func TestNotificationHandlerRefreshesTaskNotificationsBeforeListing(t *testing.T) {
+	fakeSvc := &fakeNotificationService{}
+	refresher := &fakeNotificationRefresher{
+		refreshFn: func(userID int64) error {
+			if userID != 42 {
+				t.Fatalf("userID = %d, want 42", userID)
+			}
+			return nil
+		},
+	}
+	handler, token := newNotificationHandlerForTest(t, fakeSvc, refresher)
+
+	req := newNotificationRequest(http.MethodGet, "/api/notifications", nil, token)
+	rr := httptest.NewRecorder()
+
+	handler.ListNotifications(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", rr.Code, http.StatusOK)
+	}
+	if len(refresher.refreshCalls) != 1 {
+		t.Fatalf("refreshCalls = %d, want 1", len(refresher.refreshCalls))
 	}
 }
 

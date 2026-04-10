@@ -20,18 +20,30 @@ type notificationService interface {
 
 type NotificationHandler struct {
 	service      notificationService
+	refresher    notificationRefresher
 	tokenManager *cloudauth.Manager
 }
 
-func NewNotificationHandler(service notificationService, tokenManager *cloudauth.Manager) *NotificationHandler {
-	return &NotificationHandler{
+type notificationRefresher interface {
+	RefreshNotificationsForUser(userID int64) error
+}
+
+func NewNotificationHandler(service notificationService, tokenManager *cloudauth.Manager, refresher ...notificationRefresher) *NotificationHandler {
+	handler := &NotificationHandler{
 		service:      service,
 		tokenManager: tokenManager,
 	}
+	if len(refresher) > 0 {
+		handler.refresher = refresher[0]
+	}
+	return handler
 }
 
-type notificationReadRequest struct {
-	NotificationID int64 `json:"notification_id"`
+func (h *NotificationHandler) refreshNotifications(userID int64) error {
+	if h.refresher == nil {
+		return nil
+	}
+	return h.refresher.RefreshNotificationsForUser(userID)
 }
 
 func (h *NotificationHandler) ListNotifications(w http.ResponseWriter, r *http.Request) {
@@ -50,6 +62,11 @@ func (h *NotificationHandler) ListNotifications(w http.ResponseWriter, r *http.R
 	limit, err := parseNotificationLimitQuery(r.URL.Query().Get("limit"))
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	if err := h.refreshNotifications(claims.UserID); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -127,6 +144,10 @@ func (h *NotificationHandler) MarkAllNotificationsRead(w http.ResponseWriter, r 
 	json.NewEncoder(w).Encode(map[string]any{
 		"status": "ok",
 	})
+}
+
+type notificationReadRequest struct {
+	NotificationID int64 `json:"notification_id"`
 }
 
 func parseNotificationSinceQuery(value string) (*time.Time, error) {

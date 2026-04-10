@@ -83,6 +83,7 @@ func main() {
 	deviceService := service.NewDeviceService(database)
 	hub := ws.NewHub()
 	taskService := service.NewTaskService(deviceService, hub)
+	notificationService := service.NewNotificationService(database)
 	tokenManager := cloudauth.NewManager(cfg.JWTSecret, 24*time.Hour)
 
 	// Start WebSocket hub
@@ -91,6 +92,7 @@ func main() {
 	// Initialize handlers
 	deviceHandler := handler.NewDeviceHandler(deviceService, tokenManager)
 	taskHandler := handler.NewTaskHandler(taskService, tokenManager)
+	notificationHandler := handler.NewNotificationHandler(notificationService, tokenManager, taskService)
 	authService := service.NewAuthService(database)
 	authHandler := handler.NewAuthHandler(authService, tokenManager)
 	wsHandler := handler.NewWSHubHandler(hub, deviceService, tokenManager)
@@ -120,6 +122,9 @@ func main() {
 	mux.HandleFunc("/api/devices", deviceHandler.GetUserDevices)
 	mux.HandleFunc("/api/tasks", taskHandler.GetTasks)
 	mux.HandleFunc("/api/tasks/detail", taskHandler.GetTask)
+	mux.HandleFunc("/api/notifications", notificationHandler.ListNotifications)
+	mux.HandleFunc("/api/notifications/read", notificationHandler.MarkNotificationRead)
+	mux.HandleFunc("/api/notifications/read-all", notificationHandler.MarkAllNotificationsRead)
 	mux.HandleFunc("/api/devices/sessions", deviceHandler.GetDeviceSessions)
 	mux.HandleFunc("/api/sessions", deviceHandler.CreateSession)
 	mux.HandleFunc("/api/sessions/delete", deviceHandler.DeleteSession)

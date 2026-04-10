@@ -10,6 +10,7 @@ import {
   taskStateLabels,
   taskStateStyles,
 } from '../services/tasks'
+import { NotificationBell } from '../components/NotificationBell'
 
 const filters: Array<{ key: 'all' | TaskState; label: string }> = [
   { key: 'all', label: '全部' },
@@ -143,6 +144,7 @@ export default function TasksPage() {
               </div>
             </div>
             <div className="flex flex-col gap-2">
+              <NotificationBell />
               <button
                 onClick={() => navigate('/devices')}
                 className="rounded-2xl border border-cyan-400/10 bg-slate-900/70 px-3 py-3 text-left text-[11px] uppercase tracking-[0.16em] text-cyan-300"

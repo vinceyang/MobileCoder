@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { getTask, Task, TaskEventKind } from '@/lib/tasks';
+import { NotificationBell } from '@/components/notifications/notification-bell';
 
 const stateStyles: Record<Task['state'], string> = {
   running: 'bg-emerald-600/20 text-emerald-300 border border-emerald-500/30',
@@ -93,9 +94,12 @@ export default function TaskDetailPage() {
   return (
     <div className="min-h-screen bg-gray-900 p-4 md:p-6">
       <div className="max-w-4xl mx-auto">
-        <button onClick={() => router.push('/tasks')} className="text-gray-400 hover:text-white mb-6">
-          ← 返回任务列表
-        </button>
+        <div className="mb-6 flex items-center justify-between gap-3">
+          <button onClick={() => router.push('/tasks')} className="text-gray-400 hover:text-white">
+            ← 返回任务列表
+          </button>
+          <NotificationBell className="shrink-0" />
+        </div>
 
         <section className="bg-gray-800 border border-gray-700 rounded-3xl p-6 md:p-8">
           <div className="flex items-start justify-between gap-4 flex-wrap">

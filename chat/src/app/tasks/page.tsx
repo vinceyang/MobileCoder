@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { getTasks, Task, TaskState } from '@/lib/tasks';
 import { TaskCard } from '@/components/tasks/task-card';
+import { NotificationBell } from '@/components/notifications/notification-bell';
 
 const filters: Array<{ key: 'all' | TaskState; label: string }> = [
   { key: 'all', label: '全部' },
@@ -66,6 +67,7 @@ export default function TasksPage() {
             <p className="text-gray-400 mt-2">先看正在发生的工作，再决定要不要进入终端。</p>
           </div>
           <div className="flex items-center gap-3">
+            <NotificationBell />
             <button
               onClick={() => router.push('/devices')}
               className="px-4 py-2 rounded-xl bg-gray-800 text-gray-200 hover:bg-gray-700"

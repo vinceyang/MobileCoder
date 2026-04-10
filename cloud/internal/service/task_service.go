@@ -118,6 +118,11 @@ func (s *TaskService) ListTasksForUser(userID int64) ([]Task, error) {
 	return tasks, nil
 }
 
+func (s *TaskService) RefreshNotificationsForUser(userID int64) error {
+	_, err := s.ListTasksForUser(userID)
+	return err
+}
+
 func (s *TaskService) GetTaskForUser(userID int64, taskID string) (*Task, error) {
 	tasks, err := s.ListTasksForUser(userID)
 	if err != nil {

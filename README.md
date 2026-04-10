@@ -11,6 +11,8 @@
 ## 功能特点
 
 - **移动端控制**：在手机/平板上远程控制 Claude Code
+- **任务控制塔**：优先看任务、状态和最近事件，不必先钻进终端
+- **通知闭环**：支持任务完成、等待输入、长时间无输出、设备断开提醒
 - **无需登录**：扫码即可连接，简单便捷
 - **实时同步**：终端输出在 Desktop Agent 和 H5 之间实时同步
 - **快捷键支持**：常用命令和快捷键快速输入
@@ -49,6 +51,9 @@ cd cloud
 export SUPABASE_PROJECT_URL="your-supabase-url"
 export SUPABASE_API_KEY="your-supabase-api-key"
 
+# 如果要启用通知闭环，先在 Supabase 执行:
+# cloud/sql/2026-04-11_notifications.sql
+
 # 编译并运行
 go build -o bin/server ./cmd/server
 ./bin/server
@@ -77,6 +82,16 @@ go build -o bin/client ./cmd/client
 1. Desktop Agent 启动后会显示一个 6 位绑定码
 2. 在 H5 页面输入绑定码
 3. 绑定成功后即可开始控制 Claude Code
+
+### 5. 使用通知闭环
+
+- Web 和 mobile 默认首页都是 `Tasks`
+- 通知中心会聚合四类提醒：
+  - 任务完成
+  - 等待输入
+  - 长时间无新输出
+  - Agent 断开
+- mobile 原生壳会在应用存活时触发本地通知；浏览器和 Web 端使用站内通知中心
 
 ## 使用说明
 

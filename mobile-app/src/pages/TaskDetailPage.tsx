@@ -10,6 +10,7 @@ import {
   taskStateLabels,
   taskStateStyles,
 } from '../services/tasks'
+import { NotificationBell } from '../components/NotificationBell'
 
 export default function TaskDetailPage() {
   const { taskId } = useParams<{ taskId: string }>()
@@ -102,9 +103,12 @@ export default function TaskDetailPage() {
     <div className="min-h-screen bg-[#020816] text-slate-100">
       <div className="mx-auto flex min-h-screen w-full max-w-md flex-col">
         <header className="border-b border-cyan-400/10 bg-slate-950/50 px-4 pt-5 pb-4 backdrop-blur">
-          <button onClick={() => navigate('/tasks')} className="mb-4 text-slate-400">
-            ← 返回任务列表
-          </button>
+          <div className="mb-4 flex items-center justify-between gap-3">
+            <button onClick={() => navigate('/tasks')} className="text-slate-400">
+              ← 返回任务列表
+            </button>
+            <NotificationBell />
+          </div>
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
               <p className="text-[11px] uppercase tracking-[0.24em] text-cyan-300">任务详情</p>
