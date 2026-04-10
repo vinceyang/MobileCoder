@@ -19,6 +19,10 @@ const filters: Array<{ key: 'all' | TaskState; label: string }> = [
   { key: 'completed', label: '已完成' },
 ]
 
+const panelShellClass = 'rounded-[24px] border border-cyan-400/10 bg-slate-950/80'
+const accentPanelClass = `${panelShellClass} bg-slate-900/80 shadow-[0_0_40px_rgba(8,145,178,0.12)]`
+const cardShellClass = 'w-full rounded-[22px] border p-4 text-left transition active:scale-[0.99]'
+
 export default function TasksPage() {
   const [tasks, setTasks] = useState<Task[]>([])
   const [loading, setLoading] = useState(true)
@@ -59,7 +63,8 @@ export default function TasksPage() {
     }
   }, [tasks])
 
-  const hotTask = visibleTasks[0] ?? tasks[0] ?? null
+  const activeFilterLabel = filters.find((filter) => filter.key === activeFilter)?.label ?? '当前筛选'
+  const hotTask = visibleTasks[0] ?? null
   const hotTaskEventKind = hotTask?.timeline?.[0]?.kind || 'info'
 
   const handleLogout = () => {
@@ -83,21 +88,21 @@ export default function TasksPage() {
             <div className="rounded-2xl border border-cyan-400/10 bg-cyan-400/5 px-3 py-2 shadow-[0_0_32px_rgba(34,211,238,0.08)]">
               <p className="text-[10px] uppercase tracking-[0.18em] text-slate-500">hot lane</p>
               <p className="mt-2 max-w-24 truncate text-base font-black text-cyan-300">
-                {hotTask?.tool || 'standby'}
+                {hotTask?.tool || activeFilterLabel}
               </p>
               <p className="mt-1 max-w-24 truncate text-[11px] text-slate-400">
-                {hotTask?.title || 'No active queue'}
+                {hotTask?.title || 'No matching task'}
               </p>
             </div>
           </div>
 
           <div className="mt-4 grid grid-cols-[minmax(0,1fr)_auto] gap-3">
-            <div className="rounded-[24px] border border-cyan-400/10 bg-slate-900/80 px-3 py-3 shadow-[0_0_40px_rgba(8,145,178,0.12)]">
+            <div className={`${accentPanelClass} px-3 py-3`}>
               <div className="flex items-center justify-between gap-3">
                 <div>
                   <p className="text-[10px] uppercase tracking-[0.18em] text-slate-500">live signal</p>
                   <p className="mt-2 text-sm font-semibold text-slate-100">
-                    {hotTask?.recent_event || hotTask?.summary || 'Queue is quiet for the moment'}
+                    {hotTask?.recent_event || hotTask?.summary || `${activeFilterLabel} 没有匹配任务`}
                   </p>
                 </div>
                 <span className={`h-2.5 w-2.5 rounded-full ${hotTask ? 'bg-cyan-300 shadow-[0_0_18px_rgba(103,232,249,0.85)]' : 'bg-slate-600'}`} />
@@ -156,7 +161,7 @@ export default function TasksPage() {
           </div>
 
           {loading ? (
-            <div className="rounded-[24px] border border-cyan-400/10 bg-slate-950/80 px-4 py-10 text-center text-slate-400">
+            <div className={`${panelShellClass} px-4 py-10 text-center text-slate-400`}>
               加载任务中...
             </div>
           ) : error ? (
@@ -167,7 +172,7 @@ export default function TasksPage() {
               </button>
             </div>
           ) : visibleTasks.length === 0 ? (
-            <div className="mt-6 rounded-[24px] border border-cyan-400/10 bg-slate-950/80 px-4 py-8 text-center text-slate-400">
+            <div className={`${panelShellClass} mt-6 px-4 py-8 text-center text-slate-400`}>
               <p>当前没有匹配的任务</p>
               <p className="mt-2 text-sm">打开设备页查看 Session，或等待 Agent 创建新任务。</p>
             </div>
@@ -182,7 +187,7 @@ export default function TasksPage() {
                     key={task.id}
                     type="button"
                     onClick={() => navigate(`/tasks/${encodeURIComponent(task.id)}`)}
-                    className={`w-full rounded-[22px] border p-4 text-left transition active:scale-[0.99] ${
+                    className={`${cardShellClass} ${
                       isHotTask
                         ? 'border-cyan-300/30 bg-[linear-gradient(180deg,rgba(8,145,178,0.24),rgba(2,8,22,0.92))] shadow-[0_0_44px_rgba(34,211,238,0.14)]'
                         : 'border-cyan-400/10 bg-slate-950/80'
