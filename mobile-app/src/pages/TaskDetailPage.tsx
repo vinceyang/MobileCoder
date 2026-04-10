@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useLayoutEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import {
   formatActivityLabel,
@@ -18,7 +18,11 @@ export default function TaskDetailPage() {
   const [error, setError] = useState('')
   const navigate = useNavigate()
 
-  useEffect(() => {
+  useLayoutEffect(() => {
+    setTask(null)
+    setLoading(true)
+    setError('')
+
     if (!taskId) {
       setError('Task not found')
       setLoading(false)
