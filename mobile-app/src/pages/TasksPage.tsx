@@ -81,17 +81,17 @@ export default function TasksPage() {
               <p className="text-[11px] uppercase tracking-[0.24em] text-cyan-300">Control Tower</p>
               <h1 className="mt-3 text-3xl font-black tracking-tight text-slate-50">Tasks</h1>
               <p className="mt-2 text-sm text-slate-400">
-                {queueSummary.running} tasks active, {queueSummary.waiting} waiting,{' '}
-                {queueSummary.attention} attention needed
+                {queueSummary.running} 个任务运行中，{queueSummary.waiting} 个等待处理，{queueSummary.attention}{' '}
+                个需要关注
               </p>
             </div>
             <div className="rounded-2xl border border-cyan-400/10 bg-cyan-400/5 px-3 py-2 shadow-[0_0_32px_rgba(34,211,238,0.08)]">
-              <p className="text-[10px] uppercase tracking-[0.18em] text-slate-500">hot lane</p>
+              <p className="text-[10px] uppercase tracking-[0.18em] text-slate-500">重点通道</p>
               <p className="mt-2 max-w-24 truncate text-base font-black text-cyan-300">
                 {hotTask?.tool || activeFilterLabel}
               </p>
               <p className="mt-1 max-w-24 truncate text-[11px] text-slate-400">
-                {hotTask?.title || 'No matching task'}
+                {hotTask?.title || '当前筛选为空'}
               </p>
             </div>
           </div>
@@ -100,9 +100,9 @@ export default function TasksPage() {
             <div className={`${accentPanelClass} px-3 py-3`}>
               <div className="flex items-center justify-between gap-3">
                 <div>
-                  <p className="text-[10px] uppercase tracking-[0.18em] text-slate-500">live signal</p>
+                  <p className="text-[10px] uppercase tracking-[0.18em] text-slate-500">实时信号</p>
                   <p className="mt-2 text-sm font-semibold text-slate-100">
-                    {hotTask?.recent_event || hotTask?.summary || `${activeFilterLabel} 没有匹配任务`}
+                    {hotTask?.recent_event || hotTask?.summary || '当前筛选下暂无运行信号'}
                   </p>
                 </div>
                 <span className={`h-2.5 w-2.5 rounded-full ${hotTask ? 'bg-cyan-300 shadow-[0_0_18px_rgba(103,232,249,0.85)]' : 'bg-slate-600'}`} />
@@ -117,7 +117,7 @@ export default function TasksPage() {
                   </>
                 ) : (
                   <span className="rounded-full border border-slate-700 bg-slate-900/80 px-2 py-1 text-slate-500">
-                    Neutral
+                    空闲
                   </span>
                 )}
               </div>
@@ -127,13 +127,13 @@ export default function TasksPage() {
                 onClick={() => navigate('/devices')}
                 className="rounded-2xl border border-cyan-400/10 bg-slate-900/70 px-3 py-3 text-left text-[11px] uppercase tracking-[0.16em] text-cyan-300"
               >
-                Devices
+                设备
               </button>
               <button
                 onClick={handleLogout}
                 className="rounded-2xl border border-slate-800 bg-slate-950/90 px-3 py-3 text-left text-[11px] uppercase tracking-[0.16em] text-slate-400"
               >
-                Logout
+                退出
               </button>
             </div>
           </div>
@@ -158,11 +158,11 @@ export default function TasksPage() {
         <div className="flex-1 px-4 py-4">
           <div className="mb-3 flex items-center justify-between gap-3">
             <div>
-              <p className="text-[11px] uppercase tracking-[0.2em] text-slate-500">priority queue</p>
-              <p className="mt-1 text-sm text-slate-400">Recent events lead, metadata trails.</p>
+              <p className="text-[11px] uppercase tracking-[0.2em] text-slate-500">优先队列</p>
+              <p className="mt-1 text-sm text-slate-400">先看最新事件，再决定是否深入处理。</p>
             </div>
             <span className="rounded-full border border-cyan-400/10 bg-slate-950/80 px-2.5 py-1 text-[11px] text-slate-400">
-              {visibleTasks.length} visible
+              {visibleTasks.length} 条可见
             </span>
           </div>
 
