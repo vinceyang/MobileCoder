@@ -69,16 +69,11 @@ export default function TaskDetailPage() {
     )
   }
 
-  // Current gap:
-  // - metadata reads as stacked cards, but not yet as a mission panel
-  // - timeline is functional, but not visually central enough
-  // - primary takeover action needs stronger dominance
-
   const metadataItems: Array<{ label: string; value: string; valueClassName?: string }> = [
     { label: '最近事件', value: task.recent_event },
     { label: '项目路径', value: task.project_path || '未提供', valueClassName: 'break-all' },
     { label: '设备', value: task.device_name },
-    { label: 'Session', value: task.session_name },
+    { label: '会话', value: task.session_name },
     { label: '最近活动', value: formatActivityLabel(task.last_activity_at) },
   ]
 
@@ -91,7 +86,7 @@ export default function TaskDetailPage() {
           </button>
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
-              <p className="text-[11px] uppercase tracking-[0.24em] text-cyan-300">Task Detail</p>
+              <p className="text-[11px] uppercase tracking-[0.24em] text-cyan-300">任务详情</p>
               <h1 className="mt-3 text-3xl font-black tracking-tight text-slate-50">{task.title}</h1>
               <p className="mt-2 text-sm text-slate-400">{task.state_reason}</p>
             </div>
@@ -105,7 +100,7 @@ export default function TaskDetailPage() {
           <div className="mt-4 rounded-[24px] border border-cyan-400/10 bg-[linear-gradient(180deg,rgba(8,145,178,0.18),rgba(2,8,22,0.92))] px-4 py-4 shadow-[0_0_44px_rgba(34,211,238,0.12)]">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
-                <p className="text-[10px] uppercase tracking-[0.18em] text-slate-500">Mission Summary</p>
+                <p className="text-[10px] uppercase tracking-[0.18em] text-slate-500">任务概览</p>
                 <p className="mt-2 text-sm font-semibold text-slate-100">{task.summary}</p>
               </div>
               <span className="mt-1 h-2.5 w-2.5 shrink-0 rounded-full bg-cyan-300 shadow-[0_0_18px_rgba(103,232,249,0.85)]" />
@@ -125,7 +120,7 @@ export default function TaskDetailPage() {
           <div className="rounded-[28px] border border-cyan-400/15 bg-[linear-gradient(180deg,rgba(15,23,42,0.96),rgba(2,8,22,0.98))] p-4 shadow-[0_0_52px_rgba(34,211,238,0.12)]">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <p className="text-[11px] uppercase tracking-[0.22em] text-cyan-300">Live Timeline</p>
+                <p className="text-[11px] uppercase tracking-[0.22em] text-cyan-300">实时时间线</p>
                 <p className="mt-2 text-sm text-slate-400">实时 terminal output 的关键节点，优先用于判断是否立即接管。</p>
               </div>
               <span className="rounded-full border border-cyan-400/10 bg-cyan-400/5 px-2.5 py-1 text-[11px] text-slate-400">
