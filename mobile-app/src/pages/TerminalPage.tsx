@@ -2,8 +2,6 @@ import { useEffect, useState } from 'react'
 import { useSearchParams, useNavigate } from 'react-router-dom'
 import Terminal from '../components/Terminal'
 
-// TerminalPage gap:
-// - routing is correct, but header still feels generic rather than connected to the control tower flow
 export default function TerminalPage() {
   const [searchParams] = useSearchParams()
   const [deviceId, setDeviceId] = useState('')
@@ -30,7 +28,7 @@ export default function TerminalPage() {
 
   if (!deviceId) {
     return (
-      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+      <div className="flex min-h-screen items-center justify-center bg-gray-950">
         <p className="text-gray-400">加载中...</p>
       </div>
     )
@@ -50,7 +48,7 @@ export default function TerminalPage() {
           className="flex items-center gap-2 rounded-full px-2 py-1 text-sm text-gray-300 hover:bg-gray-800 hover:text-white"
         >
           <span aria-hidden="true" className="text-base leading-none">←</span>
-          <span>返回任务</span>
+          <span>{taskId ? '返回任务' : '返回设备'}</span>
         </button>
         <div className="min-w-0">
           <p className="text-[10px] font-medium uppercase tracking-[0.28em] text-gray-500">CONTROL TOWER</p>

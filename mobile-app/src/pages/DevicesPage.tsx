@@ -2,8 +2,6 @@ import { useEffect, useState, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { getDevices, Device } from '../services/device'
 
-// DevicesPage gap:
-// - still too visually similar to a primary surface
 export default function DevicesPage() {
   const [devices, setDevices] = useState<Device[]>([])
   const [loading, setLoading] = useState(true)
@@ -16,7 +14,7 @@ export default function DevicesPage() {
       const data = await getDevices()
       setDevices(data)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load devices')
+      setError(err instanceof Error ? err.message : '加载设备失败')
       console.error(err)
     } finally {
       setLoading(false)
@@ -38,12 +36,12 @@ export default function DevicesPage() {
     <div className="min-h-screen bg-gray-950">
       <header className="flex items-start justify-between gap-4 px-4 py-3 border-b border-gray-900/80 bg-gray-950/80 backdrop-blur-sm">
         <div className="min-w-0">
-          <p className="text-[10px] font-medium text-gray-500 uppercase tracking-[0.28em]">Secondary View</p>
+          <p className="text-[10px] font-medium text-gray-500 uppercase tracking-[0.28em]">设备管理</p>
           <h1 className="mt-1 text-lg font-semibold tracking-[0.01em] text-gray-100">设备</h1>
         </div>
         <div className="flex items-center gap-2">
           <button onClick={() => navigate('/tasks')} className="rounded-full px-3 py-1.5 text-sm text-sky-300 hover:bg-sky-300/10">
-            Tasks
+            任务总览
           </button>
           <button onClick={handleLogout} className="rounded-full px-3 py-1.5 text-sm text-gray-400 hover:bg-gray-800">
             退出
@@ -64,7 +62,7 @@ export default function DevicesPage() {
         ) : devices.length === 0 ? (
           <div className="mt-8 text-center text-gray-500">
             <p>暂无设备</p>
-            <p className="mt-2 text-sm text-gray-600">请在 Desktop Agent 中绑定设备</p>
+            <p className="mt-2 text-sm text-gray-600">请在桌面 Agent 中绑定设备</p>
           </div>
         ) : (
           <div className="space-y-3">
