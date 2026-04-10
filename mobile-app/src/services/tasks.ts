@@ -63,32 +63,56 @@ export const taskStateStyles: Record<TaskState, string> = {
   attention: 'bg-rose-600/20 text-rose-200 border border-rose-400/30',
 }
 
-export const taskEventKindLabels: Record<TaskEventKind, string> = {
-  info: '信息更新',
-  needs_input: '待你确认',
-  error: '执行异常',
-  test_result: '测试结果',
-  completed: '已完成',
-  tool_step: '工具步骤',
+type TaskEventKindPresentation = {
+  label: string
+  style: string
+  dotStyle: string
 }
 
-export const taskEventKindStyles: Record<TaskEventKind, string> = {
-  info: 'bg-slate-700 text-slate-200 border border-slate-600',
-  needs_input: 'bg-amber-500/20 text-amber-200 border border-amber-400/30',
-  error: 'bg-rose-600/20 text-rose-200 border border-rose-400/30',
-  test_result: 'bg-emerald-600/20 text-emerald-300 border border-emerald-500/30',
-  completed: 'bg-cyan-500/20 text-cyan-200 border border-cyan-400/30',
-  tool_step: 'bg-sky-500/20 text-sky-200 border border-sky-400/30',
+const taskEventKindPresentation: Record<TaskEventKind, TaskEventKindPresentation> = {
+  info: {
+    label: '信息更新',
+    style: 'bg-slate-700 text-slate-200 border border-slate-600',
+    dotStyle: 'bg-slate-400',
+  },
+  needs_input: {
+    label: '待你确认',
+    style: 'bg-amber-500/20 text-amber-200 border border-amber-400/30',
+    dotStyle: 'bg-amber-400 shadow-[0_0_16px_rgba(245,158,11,0.35)]',
+  },
+  error: {
+    label: '执行异常',
+    style: 'bg-rose-600/20 text-rose-200 border border-rose-400/30',
+    dotStyle: 'bg-rose-400 shadow-[0_0_16px_rgba(251,113,133,0.35)]',
+  },
+  test_result: {
+    label: '测试结果',
+    style: 'bg-emerald-600/20 text-emerald-300 border border-emerald-500/30',
+    dotStyle: 'bg-emerald-400 shadow-[0_0_16px_rgba(52,211,153,0.35)]',
+  },
+  completed: {
+    label: '已完成',
+    style: 'bg-cyan-500/20 text-cyan-200 border border-cyan-400/30',
+    dotStyle: 'bg-cyan-400 shadow-[0_0_16px_rgba(34,211,238,0.35)]',
+  },
+  tool_step: {
+    label: '工具步骤',
+    style: 'bg-sky-500/20 text-sky-200 border border-sky-400/30',
+    dotStyle: 'bg-sky-400 shadow-[0_0_16px_rgba(56,189,248,0.35)]',
+  },
 }
 
-export const taskEventKindDotStyles: Record<TaskEventKind, string> = {
-  info: 'bg-slate-400',
-  needs_input: 'bg-amber-400 shadow-[0_0_16px_rgba(245,158,11,0.35)]',
-  error: 'bg-rose-400 shadow-[0_0_16px_rgba(251,113,133,0.35)]',
-  test_result: 'bg-emerald-400 shadow-[0_0_16px_rgba(52,211,153,0.35)]',
-  completed: 'bg-cyan-400 shadow-[0_0_16px_rgba(34,211,238,0.35)]',
-  tool_step: 'bg-sky-400 shadow-[0_0_16px_rgba(56,189,248,0.35)]',
-}
+export const taskEventKindLabels = Object.fromEntries(
+  Object.entries(taskEventKindPresentation).map(([kind, presentation]) => [kind, presentation.label]),
+) as Record<TaskEventKind, string>
+
+export const taskEventKindStyles = Object.fromEntries(
+  Object.entries(taskEventKindPresentation).map(([kind, presentation]) => [kind, presentation.style]),
+) as Record<TaskEventKind, string>
+
+export const taskEventKindDotStyles = Object.fromEntries(
+  Object.entries(taskEventKindPresentation).map(([kind, presentation]) => [kind, presentation.dotStyle]),
+) as Record<TaskEventKind, string>
 
 export function formatActivityLabel(value: string): string {
   if (!value) {
