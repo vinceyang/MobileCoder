@@ -64,12 +64,12 @@ export const taskStateStyles: Record<TaskState, string> = {
 }
 
 export const taskEventKindLabels: Record<TaskEventKind, string> = {
-  info: '信息',
-  needs_input: '待确认',
-  error: '异常',
-  test_result: '测试',
-  completed: '完成',
-  tool_step: '步骤',
+  info: '信息更新',
+  needs_input: '待你确认',
+  error: '执行异常',
+  test_result: '测试结果',
+  completed: '已完成',
+  tool_step: '工具步骤',
 }
 
 export const taskEventKindStyles: Record<TaskEventKind, string> = {
@@ -79,6 +79,15 @@ export const taskEventKindStyles: Record<TaskEventKind, string> = {
   test_result: 'bg-emerald-600/20 text-emerald-300 border border-emerald-500/30',
   completed: 'bg-cyan-500/20 text-cyan-200 border border-cyan-400/30',
   tool_step: 'bg-sky-500/20 text-sky-200 border border-sky-400/30',
+}
+
+export const taskEventKindDotStyles: Record<TaskEventKind, string> = {
+  info: 'bg-slate-400',
+  needs_input: 'bg-amber-400 shadow-[0_0_16px_rgba(245,158,11,0.35)]',
+  error: 'bg-rose-400 shadow-[0_0_16px_rgba(251,113,133,0.35)]',
+  test_result: 'bg-emerald-400 shadow-[0_0_16px_rgba(52,211,153,0.35)]',
+  completed: 'bg-cyan-400 shadow-[0_0_16px_rgba(34,211,238,0.35)]',
+  tool_step: 'bg-sky-400 shadow-[0_0_16px_rgba(56,189,248,0.35)]',
 }
 
 export function formatActivityLabel(value: string): string {
