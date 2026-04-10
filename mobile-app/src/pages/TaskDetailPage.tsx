@@ -1,4 +1,4 @@
-import { useLayoutEffect, useState } from 'react'
+import { useLayoutEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import {
   formatActivityLabel,
@@ -17,6 +17,7 @@ export default function TaskDetailPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const navigate = useNavigate()
+  const latestRequestIdRef = useRef(0)
 
   useLayoutEffect(() => {
     setTask(null)
@@ -33,15 +34,20 @@ export default function TaskDetailPage() {
   }, [taskId])
 
   async function loadTask(id: string) {
+    const requestId = ++latestRequestIdRef.current
+
     try {
       setLoading(true)
       setError('')
       const data = await getTask(id)
+      if (requestId !== latestRequestIdRef.current) return
       setTask(data)
     } catch (err) {
+      if (requestId !== latestRequestIdRef.current) return
       setError(err instanceof Error ? err.message : 'Failed to fetch task')
       console.error(err)
     } finally {
+      if (requestId !== latestRequestIdRef.current) return
       setLoading(false)
     }
   }
