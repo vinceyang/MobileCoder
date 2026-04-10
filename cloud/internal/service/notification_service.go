@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/mobile-coder/cloud/internal/db"
@@ -56,12 +57,21 @@ type notificationStore interface {
 type NotificationService struct {
 	store notificationStore
 	now   func() time.Time
+
+	dedupeMu    sync.Mutex
+	dedupeLocks map[string]*notificationLockEntry
+}
+
+type notificationLockEntry struct {
+	mu   sync.Mutex
+	refs int
 }
 
 func NewNotificationService(database *db.SupabaseDB) *NotificationService {
 	return &NotificationService{
-		store: database,
-		now:   time.Now,
+		store:       database,
+		now:         time.Now,
+		dedupeLocks: make(map[string]*notificationLockEntry),
 	}
 }
 
@@ -70,12 +80,15 @@ func (s *NotificationService) CreateNotification(userID int64, eventType Notific
 		return nil, ErrInvalidNotificationEventType
 	}
 
+	dedupeKey := buildNotificationDedupeKey(userID, eventType, taskID, deviceID, sessionName)
+	release := s.acquireDedupeLock(dedupeKey)
+	defer release()
+
 	now := s.now().UTC()
-	if err := s.applyRetention(userID, now); err != nil {
+	if err := s.applyRetention(userID); err != nil {
 		return nil, err
 	}
 
-	dedupeKey := buildNotificationDedupeKey(userID, eventType, taskID, deviceID, sessionName)
 	if existing, err := s.store.GetLatestNotificationByDedupeKey(userID, dedupeKey); err != nil {
 		return nil, err
 	} else if existing != nil && notificationIsRecent(existing, now) {
@@ -107,8 +120,7 @@ func (s *NotificationService) ListNotifications(userID int64, unreadOnly bool, s
 		limit = notificationMaxLimit
 	}
 
-	now := s.now().UTC()
-	if err := s.applyRetention(userID, now); err != nil {
+	if err := s.applyRetention(userID); err != nil {
 		return nil, err
 	}
 
@@ -139,8 +151,8 @@ func (s *NotificationService) MarkAllNotificationsRead(userID int64) error {
 	return s.store.MarkAllNotificationsRead(userID, s.now().UTC().Format(time.RFC3339))
 }
 
-func (s *NotificationService) applyRetention(userID int64, now time.Time) error {
-	notifications, err := s.store.ListNotificationsByUser(userID, notificationRetentionLimit+1, "", false)
+func (s *NotificationService) applyRetention(userID int64) error {
+	notifications, err := s.store.ListNotificationsByUser(userID, 0, "", false)
 	if err != nil {
 		return err
 	}
@@ -160,6 +172,29 @@ func (s *NotificationService) applyRetention(userID int64, now time.Time) error 
 	}
 
 	return s.store.DeleteNotificationsByIDs(userID, ids)
+}
+
+func (s *NotificationService) acquireDedupeLock(dedupeKey string) func() {
+	s.dedupeMu.Lock()
+	entry := s.dedupeLocks[dedupeKey]
+	if entry == nil {
+		entry = &notificationLockEntry{}
+		s.dedupeLocks[dedupeKey] = entry
+	}
+	entry.refs++
+	s.dedupeMu.Unlock()
+
+	entry.mu.Lock()
+	return func() {
+		entry.mu.Unlock()
+
+		s.dedupeMu.Lock()
+		entry.refs--
+		if entry.refs == 0 {
+			delete(s.dedupeLocks, dedupeKey)
+		}
+		s.dedupeMu.Unlock()
+	}
 }
 
 func notificationIsRecent(notification *db.Notification, now time.Time) bool {
