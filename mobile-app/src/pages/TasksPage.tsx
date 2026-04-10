@@ -23,6 +23,11 @@ const panelShellClass = 'rounded-[24px] border border-cyan-400/10 bg-slate-950/8
 const accentPanelClass = `${panelShellClass} bg-slate-900/80 shadow-[0_0_40px_rgba(8,145,178,0.12)]`
 const cardShellClass = 'w-full rounded-[22px] border p-4 text-left transition active:scale-[0.99]'
 
+function getLastActivityTimestamp(value: string) {
+  const timestamp = Date.parse(value)
+  return Number.isNaN(timestamp) ? Number.NEGATIVE_INFINITY : timestamp
+}
+
 export default function TasksPage() {
   const [tasks, setTasks] = useState<Task[]>([])
   const [loading, setLoading] = useState(true)
@@ -48,8 +53,23 @@ export default function TasksPage() {
   }
 
   const visibleTasks = useMemo(() => {
-    if (activeFilter === 'all') return tasks
-    return tasks.filter((task) => task.state === activeFilter)
+    const filteredTasks =
+      activeFilter === 'all' ? tasks : tasks.filter((task) => task.state === activeFilter)
+
+    return filteredTasks
+      .map((task, index) => ({ task, index }))
+      .sort((left, right) => {
+        const activityDelta =
+          getLastActivityTimestamp(right.task.last_activity_at) -
+          getLastActivityTimestamp(left.task.last_activity_at)
+
+        if (activityDelta !== 0) {
+          return activityDelta
+        }
+
+        return left.index - right.index
+      })
+      .map(({ task }) => task)
   }, [activeFilter, tasks])
 
   const queueSummary = useMemo(() => {
@@ -102,7 +122,7 @@ export default function TasksPage() {
                 <div>
                   <p className="text-[10px] uppercase tracking-[0.18em] text-slate-500">实时信号</p>
                   <p className="mt-2 text-sm font-semibold text-slate-100">
-                    {hotTask?.recent_event || hotTask?.summary || '当前筛选下暂无运行信号'}
+                    {hotTask?.recent_event || hotTask?.summary || '当前筛选下暂无最新信号'}
                   </p>
                 </div>
                 <span className={`h-2.5 w-2.5 rounded-full ${hotTask ? 'bg-cyan-300 shadow-[0_0_18px_rgba(103,232,249,0.85)]' : 'bg-slate-600'}`} />
