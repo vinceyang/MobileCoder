@@ -45,7 +45,7 @@ export default function TasksPage() {
       const data = await getTasks()
       setTasks(data)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch tasks')
+      setError(err instanceof Error ? err.message : '获取任务失败')
       console.error(err)
     } finally {
       setLoading(false)
@@ -98,8 +98,8 @@ export default function TasksPage() {
         <header className="border-b border-cyan-400/10 bg-slate-950/50 px-4 pt-5 pb-4 backdrop-blur">
           <div className="flex items-start justify-between gap-4">
             <div className="min-w-0">
-              <p className="text-[11px] uppercase tracking-[0.24em] text-cyan-300">Control Tower</p>
-              <h1 className="mt-3 text-3xl font-black tracking-tight text-slate-50">Tasks</h1>
+              <p className="text-[11px] uppercase tracking-[0.24em] text-cyan-300">控制塔台</p>
+              <h1 className="mt-3 text-3xl font-black tracking-tight text-slate-50">任务</h1>
               <p className="mt-2 text-sm text-slate-400">
                 {queueSummary.running} 个任务运行中，{queueSummary.waiting} 个等待处理，{queueSummary.attention}{' '}
                 个需要关注
