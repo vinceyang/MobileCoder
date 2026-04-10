@@ -30,6 +30,7 @@ export default function TaskDetailPage() {
 
   async function loadTask(id: string) {
     try {
+      setLoading(true)
       setError('')
       const data = await getTask(id)
       setTask(data)
