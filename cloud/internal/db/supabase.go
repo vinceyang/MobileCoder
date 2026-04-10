@@ -511,6 +511,21 @@ func (s *SupabaseDB) DeleteNotificationsBefore(userID int64, cutoff string) erro
 	return err
 }
 
+func (s *SupabaseDB) DeleteNotificationsByIDs(userID int64, notificationIDs []int64) error {
+	if len(notificationIDs) == 0 {
+		return nil
+	}
+
+	ids := make([]string, 0, len(notificationIDs))
+	for _, id := range notificationIDs {
+		ids = append(ids, fmt.Sprintf("%d", id))
+	}
+
+	endpoint := "/notifications?user_id=eq." + fmt.Sprintf("%d", userID) + "&id=in.(" + strings.Join(ids, ",") + ")"
+	_, err := s.do("DELETE", endpoint, nil)
+	return err
+}
+
 // UpdateDeviceName updates the device name
 func (s *SupabaseDB) UpdateDeviceName(deviceID, deviceName string) error {
 	data := map[string]string{

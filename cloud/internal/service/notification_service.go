@@ -10,10 +10,10 @@ import (
 )
 
 const (
-	notificationRetentionWindow = 7 * 24 * time.Hour
-	notificationDedupeWindow    = 5 * time.Minute
-	notificationDefaultLimit    = 50
-	notificationMaxLimit        = 100
+	notificationRetentionLimit = 200
+	notificationDedupeWindow   = 5 * time.Minute
+	notificationDefaultLimit   = 50
+	notificationMaxLimit       = 100
 )
 
 var (
@@ -50,7 +50,7 @@ type notificationStore interface {
 	GetLatestNotificationByDedupeKey(userID int64, dedupeKey string) (*db.Notification, error)
 	MarkNotificationRead(notificationID int64, readAt string) error
 	MarkAllNotificationsRead(userID int64, readAt string) error
-	DeleteNotificationsBefore(userID int64, cutoff string) error
+	DeleteNotificationsByIDs(userID int64, notificationIDs []int64) error
 }
 
 type NotificationService struct {
@@ -75,7 +75,7 @@ func (s *NotificationService) CreateNotification(userID int64, eventType Notific
 		return nil, err
 	}
 
-	dedupeKey := buildNotificationDedupeKey(userID, eventType, taskID, deviceID, sessionName, title, body)
+	dedupeKey := buildNotificationDedupeKey(userID, eventType, taskID, deviceID, sessionName)
 	if existing, err := s.store.GetLatestNotificationByDedupeKey(userID, dedupeKey); err != nil {
 		return nil, err
 	} else if existing != nil && notificationIsRecent(existing, now) {
@@ -140,8 +140,26 @@ func (s *NotificationService) MarkAllNotificationsRead(userID int64) error {
 }
 
 func (s *NotificationService) applyRetention(userID int64, now time.Time) error {
-	cutoff := now.Add(-notificationRetentionWindow).UTC().Format(time.RFC3339)
-	return s.store.DeleteNotificationsBefore(userID, cutoff)
+	notifications, err := s.store.ListNotificationsByUser(userID, notificationRetentionLimit+1, "", false)
+	if err != nil {
+		return err
+	}
+	if len(notifications) <= notificationRetentionLimit {
+		return nil
+	}
+
+	overflow := notifications[notificationRetentionLimit:]
+	ids := make([]int64, 0, len(overflow))
+	for _, notification := range overflow {
+		if notification.ID > 0 {
+			ids = append(ids, notification.ID)
+		}
+	}
+	if len(ids) == 0 {
+		return nil
+	}
+
+	return s.store.DeleteNotificationsByIDs(userID, ids)
 }
 
 func notificationIsRecent(notification *db.Notification, now time.Time) bool {
@@ -157,15 +175,13 @@ func notificationIsRecent(notification *db.Notification, now time.Time) bool {
 	return now.Sub(createdAt.UTC()) <= notificationDedupeWindow
 }
 
-func buildNotificationDedupeKey(userID int64, eventType NotificationEventType, taskID, deviceID, sessionName, title, body string) string {
+func buildNotificationDedupeKey(userID int64, eventType NotificationEventType, taskID, deviceID, sessionName string) string {
 	parts := []string{
 		fmt.Sprintf("%d", userID),
 		string(eventType),
 		normalizeNotificationKeyPart(taskID),
 		normalizeNotificationKeyPart(deviceID),
 		normalizeNotificationKeyPart(sessionName),
-		normalizeNotificationKeyPart(title),
-		normalizeNotificationKeyPart(body),
 	}
 	return strings.Join(parts, "|")
 }

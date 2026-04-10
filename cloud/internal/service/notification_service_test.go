@@ -15,13 +15,13 @@ type fakeNotificationStore struct {
 	getLatestNotificationByKeyFn func(userID int64, dedupeKey string) (*db.Notification, error)
 	markNotificationReadFn       func(notificationID int64, readAt string) error
 	markAllNotificationsReadFn   func(userID int64, readAt string) error
-	deleteNotificationsBeforeFn  func(userID int64, cutoff string) error
+	deleteNotificationsByIDsFn   func(userID int64, notificationIDs []int64) error
 
-	createCalls       []*db.Notification
-	listCalls         []listNotificationsCall
-	markReadCalls     []markReadCall
-	markAllReadCalls  []markAllReadCall
-	deleteBeforeCalls []deleteBeforeCall
+	createCalls      []*db.Notification
+	listCalls        []listNotificationsCall
+	markReadCalls    []markReadCall
+	markAllReadCalls []markAllReadCall
+	deleteIDCalls    []deleteIDsCall
 }
 
 type listNotificationsCall struct {
@@ -41,9 +41,9 @@ type markAllReadCall struct {
 	readAt string
 }
 
-type deleteBeforeCall struct {
+type deleteIDsCall struct {
 	userID int64
-	cutoff string
+	ids    []int64
 }
 
 func (f *fakeNotificationStore) CreateNotification(notification *db.Notification) (*db.Notification, error) {
@@ -92,10 +92,11 @@ func (f *fakeNotificationStore) MarkAllNotificationsRead(userID int64, readAt st
 	return nil
 }
 
-func (f *fakeNotificationStore) DeleteNotificationsBefore(userID int64, cutoff string) error {
-	f.deleteBeforeCalls = append(f.deleteBeforeCalls, deleteBeforeCall{userID: userID, cutoff: cutoff})
-	if f.deleteNotificationsBeforeFn != nil {
-		return f.deleteNotificationsBeforeFn(userID, cutoff)
+func (f *fakeNotificationStore) DeleteNotificationsByIDs(userID int64, notificationIDs []int64) error {
+	ids := append([]int64(nil), notificationIDs...)
+	f.deleteIDCalls = append(f.deleteIDCalls, deleteIDsCall{userID: userID, ids: ids})
+	if f.deleteNotificationsByIDsFn != nil {
+		return f.deleteNotificationsByIDsFn(userID, notificationIDs)
 	}
 	return nil
 }
@@ -138,12 +139,6 @@ func TestNotificationServiceCreateNotificationPersistsAndRetains(t *testing.T) {
 	if notification.DedupeKey == "" {
 		t.Fatal("notification.DedupeKey should not be empty")
 	}
-	if len(store.deleteBeforeCalls) != 1 {
-		t.Fatalf("len(deleteBeforeCalls) = %d, want 1", len(store.deleteBeforeCalls))
-	}
-	if store.deleteBeforeCalls[0].userID != 7 {
-		t.Fatalf("deleteBeforeCalls[0].userID = %d, want 7", store.deleteBeforeCalls[0].userID)
-	}
 	if len(store.createCalls) != 1 {
 		t.Fatalf("len(createCalls) = %d, want 1", len(store.createCalls))
 	}
@@ -152,62 +147,25 @@ func TestNotificationServiceCreateNotificationPersistsAndRetains(t *testing.T) {
 	}
 }
 
-func TestNotificationServiceCreateNotificationDedupesRecentRecord(t *testing.T) {
-	existing := &db.Notification{
-		ID:        11,
-		UserID:    7,
-		TaskID:    "dev-1:release-train",
-		EventType: string(NotificationEventTaskCompleted),
-		Title:     "任务已完成",
-		Body:      "release-train 已结束，可查看结果",
-		DedupeKey: buildNotificationDedupeKey(7, NotificationEventTaskCompleted, "dev-1:release-train", "dev-1", "release-train", "任务已完成", "release-train 已结束，可查看结果"),
-		CreatedAt: "2026-04-11T09:58:30Z",
-	}
-	store := &fakeNotificationStore{
-		getLatestNotificationByKeyFn: func(userID int64, dedupeKey string) (*db.Notification, error) {
-			if userID != 7 {
-				t.Fatalf("userID = %d, want 7", userID)
-			}
-			if dedupeKey != existing.DedupeKey {
-				t.Fatalf("dedupeKey = %q, want %q", dedupeKey, existing.DedupeKey)
-			}
-			return existing, nil
-		},
-	}
-	service := NewNotificationService(nil)
-	service.store = store
-	service.now = func() time.Time {
-		return time.Date(2026, 4, 11, 10, 0, 0, 0, time.UTC)
-	}
-
-	notification, err := service.CreateNotification(
-		7,
-		NotificationEventTaskCompleted,
-		"dev-1:release-train",
-		"dev-1",
-		"release-train",
-		"任务已完成",
-		"release-train 已结束，可查看结果",
-	)
-	if err != nil {
-		t.Fatalf("CreateNotification returned error: %v", err)
-	}
-	if notification == nil {
-		t.Fatal("CreateNotification returned nil notification")
-	}
-	if notification.ID != existing.ID {
-		t.Fatalf("notification.ID = %d, want %d", notification.ID, existing.ID)
-	}
-	if len(store.createCalls) != 0 {
-		t.Fatalf("len(createCalls) = %d, want 0", len(store.createCalls))
-	}
-}
-
 func TestNotificationServiceListNotificationsAppliesFilters(t *testing.T) {
+	listCalls := 0
 	store := &fakeNotificationStore{
 		listNotificationsByUserFn: func(userID int64, limit int, since string, unreadOnly bool) ([]db.Notification, error) {
 			if userID != 7 {
 				t.Fatalf("userID = %d, want 7", userID)
+			}
+			listCalls++
+			if listCalls == 1 {
+				if limit != notificationRetentionLimit+1 {
+					t.Fatalf("retention limit = %d, want %d", limit, notificationRetentionLimit+1)
+				}
+				if since != "" {
+					t.Fatalf("retention since = %q, want empty", since)
+				}
+				if unreadOnly {
+					t.Fatal("retention unreadOnly = true, want false")
+				}
+				return nil, nil
 			}
 			if limit != 100 {
 				t.Fatalf("limit = %d, want 100", limit)
@@ -235,8 +193,11 @@ func TestNotificationServiceListNotificationsAppliesFilters(t *testing.T) {
 	if len(notifications) != 1 {
 		t.Fatalf("len(notifications) = %d, want 1", len(notifications))
 	}
-	if len(store.deleteBeforeCalls) != 1 {
-		t.Fatalf("len(deleteBeforeCalls) = %d, want 1", len(store.deleteBeforeCalls))
+	if listCalls != 2 {
+		t.Fatalf("listCalls = %d, want 2", listCalls)
+	}
+	if len(store.deleteIDCalls) != 0 {
+		t.Fatalf("len(deleteIDCalls) = %d, want 1", len(store.deleteIDCalls))
 	}
 }
 
@@ -299,5 +260,110 @@ func TestNotificationServiceRejectsInvalidEventType(t *testing.T) {
 	}
 	if len(store.createCalls) != 0 {
 		t.Fatalf("len(createCalls) = %d, want 0", len(store.createCalls))
+	}
+}
+
+func TestNotificationServiceRetentionKeepsLatest200Notifications(t *testing.T) {
+	notifications := make([]db.Notification, 0, 201)
+	for i := 201; i >= 1; i-- {
+		notifications = append(notifications, db.Notification{
+			ID:        int64(i),
+			UserID:    7,
+			CreatedAt: time.Date(2026, 4, 11, 10, 0, 0, 0, time.UTC).Add(time.Duration(-i) * time.Minute).Format(time.RFC3339),
+		})
+	}
+
+	store := &fakeNotificationStore{
+		listNotificationsByUserFn: func(userID int64, limit int, since string, unreadOnly bool) ([]db.Notification, error) {
+			if userID != 7 {
+				t.Fatalf("userID = %d, want 7", userID)
+			}
+			if limit != notificationRetentionLimit+1 {
+				t.Fatalf("limit = %d, want %d", limit, notificationRetentionLimit+1)
+			}
+			if since != "" {
+				t.Fatalf("since = %q, want empty", since)
+			}
+			if unreadOnly {
+				t.Fatal("unreadOnly = true, want false")
+			}
+			return notifications, nil
+		},
+	}
+
+	service := NewNotificationService(nil)
+	service.store = store
+	service.now = func() time.Time { return time.Date(2026, 4, 11, 10, 0, 0, 0, time.UTC) }
+
+	if err := service.applyRetention(7, service.now()); err != nil {
+		t.Fatalf("applyRetention returned error: %v", err)
+	}
+	if len(store.deleteIDCalls) != 1 {
+		t.Fatalf("len(deleteIDCalls) = %d, want 1", len(store.deleteIDCalls))
+	}
+	if got := store.deleteIDCalls[0].ids; len(got) != 1 || got[0] != 1 {
+		t.Fatalf("delete ids = %v, want [1]", got)
+	}
+}
+
+func TestNotificationServiceDedupesByConditionOnly(t *testing.T) {
+	baseNotification := &db.Notification{
+		ID:          11,
+		UserID:      7,
+		TaskID:      "dev-1:release-train",
+		DeviceID:    "dev-1",
+		SessionName: "release-train",
+		EventType:   string(NotificationEventTaskCompleted),
+		Title:       "任务已完成",
+		Body:        "release-train 已结束，可查看结果",
+		CreatedAt:   "2026-04-11T09:58:30Z",
+	}
+
+	var dedupeKeys []string
+	store := &fakeNotificationStore{
+		getLatestNotificationByKeyFn: func(userID int64, dedupeKey string) (*db.Notification, error) {
+			if userID != 7 {
+				t.Fatalf("userID = %d, want 7", userID)
+			}
+			dedupeKeys = append(dedupeKeys, dedupeKey)
+			if len(dedupeKeys) == 1 {
+				return nil, nil
+			}
+			return baseNotification, nil
+		},
+		createNotificationFn: func(notification *db.Notification) (*db.Notification, error) {
+			notification.ID = 11
+			notification.CreatedAt = "2026-04-11T09:58:30Z"
+			return notification, nil
+		},
+	}
+
+	service := NewNotificationService(nil)
+	service.store = store
+	service.now = func() time.Time { return time.Date(2026, 4, 11, 10, 0, 0, 0, time.UTC) }
+
+	first, err := service.CreateNotification(7, NotificationEventTaskCompleted, "dev-1:release-train", "dev-1", "release-train", "任务已完成", "release-train 已结束，可查看结果")
+	if err != nil {
+		t.Fatalf("first CreateNotification returned error: %v", err)
+	}
+	if first == nil || first.ID != 11 {
+		t.Fatalf("first notification = %+v, want ID 11", first)
+	}
+
+	second, err := service.CreateNotification(7, NotificationEventTaskCompleted, "dev-1:release-train", "dev-1", "release-train", "完成啦", "你可以回来看结果了")
+	if err != nil {
+		t.Fatalf("second CreateNotification returned error: %v", err)
+	}
+	if second == nil || second.ID != 11 {
+		t.Fatalf("second notification = %+v, want ID 11", second)
+	}
+	if len(dedupeKeys) != 2 {
+		t.Fatalf("len(dedupeKeys) = %d, want 2", len(dedupeKeys))
+	}
+	if dedupeKeys[0] != dedupeKeys[1] {
+		t.Fatalf("dedupe keys differ: %q vs %q", dedupeKeys[0], dedupeKeys[1])
+	}
+	if len(store.createCalls) != 1 {
+		t.Fatalf("len(createCalls) = %d, want 1", len(store.createCalls))
 	}
 }
