@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState, useMemo } from 'react';
+import { useCallback, useEffect, useRef, useState, useMemo } from 'react';
 import AnsiToHtml from 'ansi-to-html';
 import { getWsBaseUrl } from '@/lib/api';
 
@@ -44,23 +44,28 @@ export default function Terminal({ deviceId, sessionName, onConnectionChange }: 
   const reconnectAttemptsRef = useRef(0);
 
   // 从 URL 获取 session_name
-  const [urlSessionName, setUrlSessionName] = useState('');
+  const [urlSessionName, setUrlSessionName] = useState(() => {
+    if (typeof window === 'undefined') return '';
+    return new URLSearchParams(window.location.search).get('session_name') || '';
+  });
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
       const s = params.get('session_name');
-      if (s) {
-        setUrlSessionName(s);
-        localStorage.setItem('session_name', s);
-      }
+      if (!s) return;
+      setUrlSessionName(s);
+      localStorage.setItem('session_name', s);
     }
   }, []);
 
   // 优先使用 props，其次使用 URL 中的 session_name
-  const effectiveSessionName = sessionName || urlSessionName || localStorage.getItem('session_name') || '';
+  const storedSessionName = typeof window !== 'undefined' ? localStorage.getItem('session_name') || '' : '';
+  const effectiveSessionName = sessionName || urlSessionName || storedSessionName;
 
   // 连接到 WebSocket
-  const connect = () => {
+  const connect = useCallback(() => {
+    if (!effectiveSessionName) return;
+
     // 清理现有连接
     if (wsRef.current) {
       wsRef.current.close();
@@ -104,7 +109,7 @@ export default function Terminal({ deviceId, sessionName, onConnectionChange }: 
       }
     };
     wsRef.current = ws;
-  };
+  }, [deviceId, effectiveSessionName, onConnectionChange]);
 
   // 初始化 WebSocket 连接
   useEffect(() => {
@@ -118,7 +123,7 @@ export default function Terminal({ deviceId, sessionName, onConnectionChange }: 
         clearTimeout(reconnectTimeoutRef.current);
       }
     };
-  }, [deviceId]);
+  }, [connect]);
 
   // ANSI to HTML 转换器
   const ansiToHtml = useMemo(() => new AnsiToHtml({

@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"reflect"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -126,5 +127,49 @@ func TestLoadOrCreateDeviceIDRequiresRebindWithoutTokenOrBindCode(t *testing.T) 
 
 	if _, _, err := loadOrCreateDeviceID(server.Listener.Addr().String()); err == nil {
 		t.Fatal("loadOrCreateDeviceID succeeded without agent token or bind code")
+	}
+}
+
+func TestTerminalInputToTmuxCommandsSubmitsTextWithEnterKey(t *testing.T) {
+	got := terminalInputToTmuxCommands("codex-session", map[string]interface{}{
+		"content": "fix the login flow\n",
+	})
+
+	want := [][]string{
+		{"send-keys", "-t", "codex-session", "-l", "fix the login flow"},
+		{"send-keys", "-t", "codex-session", "C-m"},
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("commands = %#v, want %#v", got, want)
+	}
+}
+
+func TestTerminalInputToTmuxCommandsUsesNativeEnterForKeyAction(t *testing.T) {
+	got := terminalInputToTmuxCommands("codex-session", map[string]interface{}{
+		"action":    "key",
+		"key":       "Enter",
+		"modifiers": []interface{}{},
+	})
+
+	want := [][]string{
+		{"send-keys", "-t", "codex-session", "C-m"},
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("commands = %#v, want %#v", got, want)
+	}
+}
+
+func TestTerminalInputToTmuxCommandsUsesNativeControlKey(t *testing.T) {
+	got := terminalInputToTmuxCommands("codex-session", map[string]interface{}{
+		"action":    "key",
+		"key":       "c",
+		"modifiers": []interface{}{"ctrl"},
+	})
+
+	want := [][]string{
+		{"send-keys", "-t", "codex-session", "C-c"},
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("commands = %#v, want %#v", got, want)
 	}
 }
