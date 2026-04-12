@@ -369,6 +369,15 @@ func tmuxKeyCommand(sessionName string, key string, modifiers []interface{}) []s
 	return []string{"send-keys", "-t", sessionName, "-l", key}
 }
 
+func isLiteralTmuxInput(args []string) bool {
+	for _, arg := range args {
+		if arg == "-l" {
+			return true
+		}
+	}
+	return false
+}
+
 func main() {
 	serverURL := flag.String("server", "localhost:8080", "Cloud server URL")
 	aiTool := flag.String("ai", "claude", "AI coding tool: claude, codex, cursor")
@@ -577,6 +586,9 @@ func main() {
 					log.Printf("tmux %s", strings.Join(args, " "))
 					if err := exec.Command("tmux", args...).Run(); err != nil {
 						log.Printf("tmux send failed: %v", err)
+					}
+					if isLiteralTmuxInput(args) {
+						time.Sleep(150 * time.Millisecond)
 					}
 				}
 			}

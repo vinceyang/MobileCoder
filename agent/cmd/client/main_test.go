@@ -173,3 +173,12 @@ func TestTerminalInputToTmuxCommandsUsesNativeControlKey(t *testing.T) {
 		t.Fatalf("commands = %#v, want %#v", got, want)
 	}
 }
+
+func TestIsLiteralTmuxInput(t *testing.T) {
+	if !isLiteralTmuxInput([]string{"send-keys", "-t", "codex-session", "-l", "hello"}) {
+		t.Fatal("literal command was not detected")
+	}
+	if isLiteralTmuxInput([]string{"send-keys", "-t", "codex-session", "C-m"}) {
+		t.Fatal("native key command was detected as literal input")
+	}
+}
