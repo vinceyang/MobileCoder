@@ -41,41 +41,54 @@ interface TaskCardProps {
 
 export function TaskCard({ task, onOpen }: TaskCardProps) {
   const latestEventKind = task.timeline?.[0]?.kind || 'info';
+  const projectLabel = compactPath(task.project_path || task.device_name);
 
   return (
     <button
       type="button"
       onClick={() => onOpen(task)}
-      className="w-full text-left bg-gray-800 rounded-2xl p-5 hover:bg-gray-750 transition-colors border border-gray-700"
+      className="group w-full rounded-[24px] border border-cyan-400/10 bg-[linear-gradient(180deg,rgba(15,23,42,0.96),rgba(2,8,22,0.96))] p-4 text-left shadow-[0_18px_60px_rgba(0,0,0,0.28)] transition active:scale-[0.99] md:p-5"
     >
-      <div className="flex items-start justify-between gap-4">
+      <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <h3 className="text-white text-lg font-semibold truncate">{task.title}</h3>
-            <span className="text-[11px] uppercase tracking-wide text-sky-300 bg-sky-500/10 px-2 py-1 rounded-full border border-sky-500/20">
+          <div className="flex items-center gap-2">
+            <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-cyan-300 shadow-[0_0_18px_rgba(103,232,249,0.65)]" />
+            <h3 className="min-w-0 truncate text-lg font-black tracking-tight text-slate-50">
+              {task.title}
+            </h3>
+          </div>
+          <div className="mt-2 flex min-w-0 items-center gap-2 text-xs text-slate-400">
+            <span className="shrink-0 rounded-full border border-cyan-400/10 bg-cyan-400/5 px-2 py-1 text-[10px] uppercase tracking-wide text-cyan-200">
               {task.tool}
             </span>
+            <span className="min-w-0 truncate font-mono">{projectLabel}</span>
           </div>
-          <p className="text-gray-400 text-sm mt-1 truncate">
-            {task.project_path || task.device_name}
-          </p>
         </div>
-        <span className={`text-xs px-2.5 py-1 rounded-full whitespace-nowrap ${stateStyles[task.state]}`}>
+        <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ${stateStyles[task.state]}`}>
           {stateLabels[task.state]}
         </span>
       </div>
 
-      <div className="mt-4 flex items-center gap-2 flex-wrap">
-        <span className={`text-[11px] px-2 py-1 rounded-full ${eventKindStyles[latestEventKind]}`}>
+      <div className="mt-4 rounded-2xl border border-slate-800 bg-slate-950/70 p-3">
+        <div className="mb-2 flex items-center gap-2">
+          <span className={`rounded-full px-2 py-1 text-[11px] font-semibold ${eventKindStyles[latestEventKind]}`}>
           {eventKindLabels[latestEventKind]}
         </span>
-        <p className="text-gray-200 text-sm min-w-0 flex-1">{task.recent_event || task.summary}</p>
+        </div>
+        <p className="line-clamp-2 text-sm leading-5 text-slate-200">{task.recent_event || task.summary}</p>
       </div>
 
-      <div className="flex items-center justify-between mt-4 text-xs text-gray-400">
-        <span>{task.device_name}</span>
-        <span>{task.session_name}</span>
+      <div className="mt-3 flex min-w-0 items-center justify-between gap-3 text-[11px] text-slate-500">
+        <span className="min-w-0 truncate">{task.device_name}</span>
+        <span className="min-w-0 truncate text-right font-mono">{task.session_name}</span>
       </div>
     </button>
   );
+}
+
+function compactPath(value: string): string {
+  if (!value) return '未提供路径';
+  const parts = value.split('/').filter(Boolean);
+  if (parts.length <= 2) return value;
+  return `~/${parts.slice(-2).join('/')}`;
 }

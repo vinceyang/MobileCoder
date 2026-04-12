@@ -86,39 +86,39 @@ export default function AddDevicePage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-900">
-      <div className="bg-gray-800 p-8 rounded-lg w-96">
-        <h1 className="text-2xl text-white mb-6">添加设备</h1>
+    <div className="flex min-h-screen items-center justify-center bg-[#020816] px-4 text-slate-100">
+      <div className="w-full max-w-sm rounded-[28px] border border-cyan-400/10 bg-[linear-gradient(180deg,rgba(15,23,42,0.96),rgba(2,8,22,0.96))] p-6 shadow-[0_24px_90px_rgba(0,0,0,0.42)]">
+        <p className="text-[11px] uppercase tracking-[0.24em] text-cyan-300">Device Bind</p>
+        <h1 className="mt-3 text-3xl font-black tracking-tight text-slate-50">添加设备</h1>
+        <p className="mt-2 text-sm leading-5 text-slate-400">
+          启动桌面 Agent 后，把终端里显示的 6 位绑定码填到这里。
+        </p>
 
         {error && (
-          <div className="bg-red-500 text-white p-3 rounded mb-4">
+          <div className="mt-5 rounded-2xl border border-rose-400/20 bg-rose-500/10 p-3 text-sm text-rose-100">
             {error}
           </div>
         )}
-
-        <p className="text-gray-400 mb-4">
-          请在 Agent 端启动后获取绑定码，然后在此输入绑定码绑定设备。
-        </p>
 
         <input
           type="text"
           placeholder="输入绑定码"
           value={bindCode}
           onChange={(e) => setBindCode(e.target.value)}
-          className="w-full p-3 mb-6 bg-gray-700 text-white rounded"
+          className="mt-6 w-full rounded-2xl border border-cyan-400/10 bg-slate-900 px-4 py-3 text-center font-mono text-xl uppercase tracking-[0.24em] text-white outline-none placeholder:text-sm placeholder:tracking-normal placeholder:text-slate-600 focus:border-cyan-300/50"
         />
 
         <button
           onClick={handleBind}
           disabled={loading}
-          className="w-full bg-blue-600 text-white p-3 rounded hover:bg-blue-700 disabled:opacity-50"
+          className="mt-5 w-full rounded-2xl bg-cyan-300 p-3 font-black text-slate-950 transition active:scale-[0.99] disabled:opacity-50"
         >
           {loading ? '绑定中...' : '绑定'}
         </button>
 
         <button
           onClick={() => router.push('/devices')}
-          className="w-full mt-4 text-gray-400 hover:text-white"
+          className="mt-4 w-full rounded-2xl border border-cyan-400/10 bg-slate-900/80 p-3 text-sm font-semibold text-slate-300"
         >
           返回设备列表
         </button>

@@ -28,6 +28,7 @@ export function NotificationList({ notifications, onOpen }: NotificationListProp
       {notifications.map((notification) => {
         const unread = isUnreadNotification(notification)
         const targetHref = buildNotificationTaskHref(notification)
+        const sourceLabel = notification.session_name || notification.device_id
 
         return (
           <button
@@ -54,7 +55,7 @@ export function NotificationList({ notifications, onOpen }: NotificationListProp
                     {unread ? '未读' : '已读'}
                   </span>
                 </div>
-                <p className="mt-2 truncate text-xs text-slate-500">{notification.session_name || notification.device_id}</p>
+                <p className="mt-2 truncate font-mono text-xs text-slate-500">{sourceLabel}</p>
               </div>
               <span
                 className={`rounded-full px-2 py-1 text-[11px] whitespace-nowrap ${getNotificationEventStyle(notification.event_type)}`}
@@ -66,7 +67,7 @@ export function NotificationList({ notifications, onOpen }: NotificationListProp
             <p className="mt-3 text-sm leading-6 text-slate-200">{notification.body}</p>
 
             <div className="mt-4 flex items-center justify-between gap-3 text-[11px] text-slate-400">
-              <span className="truncate">{targetHref}</span>
+              <span className="truncate">{targetHref.includes('/tasks/') ? '点击进入任务详情' : '暂无任务链接'}</span>
               <span className="shrink-0">{formatNotificationTime(notification.created_at)}</span>
             </div>
           </button>

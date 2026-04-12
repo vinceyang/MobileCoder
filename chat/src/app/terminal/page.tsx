@@ -42,26 +42,24 @@ function TerminalContent() {
   }
 
   return (
-    <div className="h-screen flex flex-col" style={{ backgroundColor: '#111827' }}>
+    <div className="flex h-screen flex-col bg-[#020816] text-slate-100">
       {/* 合并的头部：返回 + 连接状态 + 重连 */}
-      <div className="flex items-center justify-between px-3 py-2 border-b border-gray-800" style={{ backgroundColor: '#111827' }}>
+      <div className="flex items-center justify-between border-b border-cyan-400/10 bg-slate-950/95 px-3 py-2">
         <button
           onClick={goBack}
-          style={{ color: '#9ca3af' }}
-          className="hover:text-white text-lg"
+          className="flex h-11 w-11 items-center justify-center rounded-2xl border border-cyan-400/10 bg-slate-900/80 text-lg text-slate-300"
         >
           ←
         </button>
         <div className="flex items-center gap-2">
-          <span className={`w-2 h-2 rounded-full ${connected ? 'bg-green-500' : 'bg-red-500'}`} />
-          <span className="text-xs" style={{ color: '#9ca3af' }}>
+          <span className={`h-2 w-2 rounded-full ${connected ? 'bg-emerald-400 shadow-[0_0_14px_rgba(52,211,153,0.75)]' : 'bg-rose-400'}`} />
+          <span className="text-xs font-semibold text-slate-400">
             {connected ? '已连接' : '重连中...'}
           </span>
         </div>
         <button
           onClick={reconnect}
-          className="text-xs px-2 py-1 rounded"
-          style={{ color: '#60a5fa', backgroundColor: 'rgba(59, 130, 246, 0.1)' }}
+          className="flex h-11 items-center rounded-2xl border border-cyan-400/10 bg-slate-900/80 px-3 text-xs font-semibold text-cyan-200"
         >
           重连
         </button>
