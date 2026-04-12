@@ -26,14 +26,11 @@ const getWSUrl = (deviceId: string, sessionName: string, token: string) => {
   return `${getWsBaseUrl()}/ws?${params.toString()}`;
 };
 
-// 检测是否为移动端
-const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
-
 export default function Terminal({ deviceId, sessionName, onConnectionChange }: TerminalProps) {
   const [output, setOutput] = useState('');
   const [input, setInput] = useState('');
   const [connected, setConnected] = useState(false);
-  const [mode, setMode] = useState<'text' | 'keys'>(isMobile ? 'keys' : 'text');
+  const [mode, setMode] = useState<'text' | 'keys'>('text');
   const [lastKey, setLastKey] = useState<string>('');
   const [showScrollTop, setShowScrollTop] = useState(false);
   const [showScrollBottom, setShowScrollBottom] = useState(false);
@@ -252,21 +249,21 @@ export default function Terminal({ deviceId, sessionName, onConnectionChange }: 
   ];
 
   return (
-    <div className="h-full flex flex-col overflow-hidden relative" style={{ backgroundColor: '#111827' }}>
+    <div className="relative flex h-full flex-col overflow-hidden bg-[#020816]">
       {/* 终端输出区域 */}
       <div
         ref={outputRef}
         onScroll={handleScroll}
-        className="flex-1 overflow-auto p-2 md:p-4"
+        className="min-h-0 flex-1 overflow-auto px-3 py-3 md:px-4"
         style={{ WebkitOverflowScrolling: 'touch' }}
       >
         {!output ? (
-          <div className="text-sm" style={{ color: '#6b7280' }}>
+          <div className="rounded-2xl border border-cyan-400/10 bg-slate-950/70 p-4 text-sm text-slate-500">
             {connected ? '等待终端输出...' : '请启动 Desktop Agent 连接设备'}
           </div>
         ) : (
           <pre
-            className="whitespace-pre-wrap font-mono text-xs md:text-sm"
+            className="min-w-max whitespace-pre font-mono text-[11px] leading-5 text-emerald-200 md:text-sm"
             dangerouslySetInnerHTML={{ __html: ansiToHtml.toHtml(output) }}
           />
         )}
@@ -276,7 +273,7 @@ export default function Terminal({ deviceId, sessionName, onConnectionChange }: 
       {showScrollTop && (
         <button
           onClick={scrollToTop}
-          className="absolute right-4 bottom-24 w-10 h-10 rounded-full flex items-center justify-center text-lg"
+          className="absolute right-4 bottom-24 flex h-10 w-10 items-center justify-center rounded-full text-lg"
           style={{ backgroundColor: 'rgba(59, 130, 246, 0.9)', color: '#ffffff' }}
         >
           ↑
@@ -285,7 +282,7 @@ export default function Terminal({ deviceId, sessionName, onConnectionChange }: 
       {showScrollBottom && (
         <button
           onClick={scrollToBottom}
-          className="absolute right-4 bottom-48 w-10 h-10 rounded-full flex items-center justify-center text-lg"
+          className="absolute right-4 bottom-40 flex h-10 w-10 items-center justify-center rounded-full text-lg"
           style={{ backgroundColor: 'rgba(59, 130, 246, 0.9)', color: '#ffffff' }}
         >
           ↓
@@ -294,14 +291,15 @@ export default function Terminal({ deviceId, sessionName, onConnectionChange }: 
 
       {/* 按键反馈提示 */}
       {lastKey && (
-        <div className="fixed bottom-32 left-1/2 -translate-x-1/2 bg-blue-600/90 text-white px-3 py-1.5 rounded-lg text-xs md:text-sm animate-pulse z-50">
+        <div className="fixed bottom-24 left-1/2 z-50 -translate-x-1/2 animate-pulse rounded-lg bg-cyan-500/90 px-3 py-1.5 text-xs text-slate-950 md:text-sm">
           已发送: {lastKey}
         </div>
       )}
 
       {/* 底部输入/快捷键区域 */}
       {mode === 'text' ? (
-        <div className="flex p-2 md:p-4 border-t border-gray-800 gap-2">
+        <div className="border-t border-cyan-400/10 bg-slate-950/95 p-2 backdrop-blur md:p-4">
+          <div className="flex gap-2">
           <textarea
             ref={inputRef}
             value={input}
@@ -312,41 +310,42 @@ export default function Terminal({ deviceId, sessionName, onConnectionChange }: 
                 handleSend();
               }
             }}
-            className="flex-1 px-3 md:px-4 py-2 md:py-3 bg-gray-800 border border-gray-700 rounded-lg text-white font-mono text-sm md:text-base resize-none"
+              className="min-h-[42px] flex-1 resize-none rounded-2xl border border-cyan-400/10 bg-slate-900 px-3 py-2 font-mono text-sm text-white outline-none placeholder:text-slate-600 focus:border-cyan-300/50 md:px-4 md:py-3 md:text-base"
             placeholder="输入指令..."
             rows={1}
             autoFocus
           />
           <button
             onClick={handleSend}
-            className="px-3 md:px-4 py-2 md:py-3 bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white font-medium rounded-lg transition-colors text-sm"
+              className="rounded-2xl bg-cyan-300 px-4 py-2 text-sm font-black text-slate-950 transition active:scale-95 md:px-5 md:py-3"
           >
             发送
           </button>
           <button
             onClick={() => setMode('keys')}
-            className="px-3 md:px-4 py-2 md:py-3 bg-gray-700 hover:bg-gray-600 active:bg-gray-500 text-white font-medium rounded-lg transition-colors text-sm"
+              className="rounded-2xl border border-cyan-400/10 bg-slate-900 px-3 py-2 text-sm font-semibold text-slate-200 transition active:scale-95 md:px-4 md:py-3"
           >
             快捷
           </button>
+          </div>
         </div>
       ) : (
-        <div className="flex flex-col p-2 md:p-4 border-t border-gray-800 max-h-[50dvh]">
+        <div className="flex max-h-[34dvh] flex-col border-t border-cyan-400/10 bg-slate-950/95 p-2 backdrop-blur md:p-4">
           {/* 快捷键网格 */}
-          <div className="grid grid-cols-4 gap-1 md:gap-2 flex-1 overflow-y-auto">
+          <div className="grid flex-1 grid-cols-4 gap-1 overflow-y-auto md:gap-2">
             {commandGroups.flatMap(group =>
               group.keys.map((btn) => (
                 <button
                   key={btn.label}
                   onClick={() => sendKey(btn.key, btn.mods || [])}
-                  className={`flex flex-col items-center justify-center py-2 md:py-2.5 rounded-lg transition-colors active:scale-95 ${
+                  className={`flex flex-col items-center justify-center rounded-xl py-2 transition active:scale-95 md:py-2.5 ${
                     btn.key.startsWith('/')
-                      ? 'bg-purple-700 hover:bg-purple-600 active:bg-purple-500'
-                      : 'bg-gray-700 hover:bg-gray-600 active:bg-blue-600'
-                  } text-white`}
+                      ? 'border border-cyan-400/10 bg-cyan-500/15 text-cyan-100'
+                      : 'border border-slate-700 bg-slate-800 text-white'
+                  }`}
                 >
                   <span className="font-mono font-bold text-xs md:text-sm">{btn.label}</span>
-                  <span className="text-[10px] md:text-xs text-gray-300 mt-0.5">{btn.description}</span>
+                  <span className="mt-0.5 text-[10px] text-slate-400 md:text-xs">{btn.description}</span>
                 </button>
               ))
             )}
@@ -354,9 +353,9 @@ export default function Terminal({ deviceId, sessionName, onConnectionChange }: 
           {/* 切换到文本模式的按钮 */}
           <button
             onClick={() => setMode('text')}
-            className="mt-2 w-full py-2 bg-gray-700 hover:bg-gray-600 active:bg-gray-500 text-white font-medium rounded-lg transition-colors text-sm"
+            className="mt-2 w-full rounded-2xl bg-cyan-300 py-2 text-sm font-black text-slate-950 transition active:scale-[0.99]"
           >
-            文本
+            返回文本输入
           </button>
         </div>
       )}

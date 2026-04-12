@@ -92,51 +92,62 @@ export default function TaskDetailPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-900 p-4 md:p-6">
-      <div className="max-w-4xl mx-auto">
-        <div className="mb-6 flex items-center justify-between gap-3">
-          <button onClick={() => router.push('/tasks')} className="text-gray-400 hover:text-white">
+    <div className="min-h-screen bg-[#020816] text-slate-100">
+      <div className="mx-auto flex min-h-screen w-full max-w-md flex-col md:max-w-4xl">
+        <div className="sticky top-0 z-20 flex items-center justify-between gap-3 border-b border-cyan-400/10 bg-[#020816]/95 px-4 py-3 backdrop-blur md:static md:border-0 md:bg-transparent md:px-6">
+          <button onClick={() => router.push('/tasks')} className="rounded-full border border-cyan-400/10 bg-slate-900/80 px-3 py-2 text-sm text-slate-300">
             ← 返回任务列表
           </button>
           <NotificationBell className="shrink-0" />
         </div>
 
-        <section className="bg-gray-800 border border-gray-700 rounded-3xl p-6 md:p-8">
-          <div className="flex items-start justify-between gap-4 flex-wrap">
+        <main className="flex-1 px-4 py-4 md:px-6">
+        <section className="rounded-[28px] border border-cyan-400/10 bg-[radial-gradient(circle_at_top_right,rgba(14,165,233,0.20),transparent_34%),linear-gradient(180deg,rgba(15,23,42,0.96),rgba(2,8,22,0.96))] p-4 shadow-[0_24px_80px_rgba(0,0,0,0.35)] md:p-8">
+          <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
-              <p className="text-sm text-sky-300 uppercase tracking-[0.2em]">Task Detail</p>
-              <h1 className="text-3xl font-semibold text-white mt-2">{task.title}</h1>
-              <p className="text-gray-400 mt-3 max-w-2xl">{task.summary}</p>
+              <h1 className="truncate text-2xl font-black tracking-tight text-slate-50 md:text-3xl">
+                {task.title}
+              </h1>
             </div>
-            <span className={`text-sm px-3 py-1.5 rounded-full whitespace-nowrap ${stateStyles[task.state]}`}>
+            <span className={`shrink-0 rounded-full px-3 py-1.5 text-sm font-semibold ${stateStyles[task.state]}`}>
               {stateLabels[task.state]}
             </span>
           </div>
 
-          <div className="grid md:grid-cols-2 gap-4 mt-8">
-            <InfoCard label="状态原因" value={task.state_reason} />
-            <InfoCard label="最近事件" value={task.recent_event} />
-            <InfoCard label="项目路径" value={task.project_path || '未提供'} />
-            <InfoCard label="工具" value={task.tool} />
-            <InfoCard label="设备" value={task.device_name} />
-            <InfoCard label="Session" value={task.session_name} />
+          <div className="mt-5 grid grid-cols-2 gap-2 md:grid-cols-4">
+            <InfoCard label="工具" value={task.tool} compact />
+            <InfoCard label="设备" value={task.device_name} compact />
+            <InfoCard label="最近活动" value={formatActivityLabel(task.last_activity_at)} compact />
+            <InfoCard label="Session" value={task.session_name} compact />
           </div>
 
-          <div className="mt-6 rounded-2xl border border-gray-700 bg-gray-900/60 p-5">
-            <p className="text-xs uppercase tracking-wide text-gray-500">最近活动</p>
-            <p className="text-base text-gray-100 mt-2">
-              {formatActivityLabel(task.last_activity_at)}
-            </p>
-            <p className="text-sm text-gray-400 mt-2">
-              这一步先使用设备在线时间和 session 创建时间做弱信号聚合，后续再接真正的 agent 事件流。
-            </p>
+          <div className="mt-5 rounded-2xl border border-slate-800 bg-slate-950/70 p-4">
+            <p className="text-xs uppercase tracking-wide text-slate-500">当前信号</p>
+            <p className="mt-2 text-sm font-medium leading-5 text-slate-100">{task.state_reason}</p>
+            <p className="mt-2 line-clamp-2 text-sm leading-5 text-slate-400">{task.recent_event}</p>
           </div>
 
-          <div className="mt-6 rounded-2xl border border-gray-700 bg-gray-900/60 p-5">
+          <div className="mt-5 flex gap-2">
+            <button
+              onClick={openTerminal}
+              className="flex-1 rounded-2xl bg-cyan-300 px-4 py-3 text-sm font-black text-slate-950 shadow-[0_0_26px_rgba(103,232,249,0.28)]"
+            >
+              打开终端接管
+            </button>
+            <button
+              onClick={() => void loadTask(task.id)}
+              className="rounded-2xl border border-cyan-400/10 bg-slate-900/80 px-4 py-3 text-sm font-semibold text-slate-200"
+            >
+              刷新
+            </button>
+          </div>
+        </section>
+
+          <section className="mt-4 rounded-[24px] border border-cyan-400/10 bg-slate-950/80 p-4 md:p-5">
             <div className="flex items-center justify-between gap-3">
               <div>
-                <p className="text-xs uppercase tracking-wide text-gray-500">Recent Timeline</p>
-                <p className="text-sm text-gray-400 mt-2">来自实时 terminal output 的最近事件摘录。</p>
+                <p className="text-[11px] uppercase tracking-[0.2em] text-slate-500">Recent Timeline</p>
+                <p className="mt-1 text-sm text-slate-400">来自实时 terminal output 的最近事件摘录。</p>
               </div>
             </div>
 
@@ -152,33 +163,18 @@ export default function TaskDetailPage() {
                         </span>
                         <p className="text-sm text-gray-100 break-words">{event.summary}</p>
                       </div>
-                      <p className="text-xs text-gray-500 mt-1">{formatActivityLabel(event.timestamp)}</p>
+                      <p className="mt-1 text-xs text-slate-500">{formatActivityLabel(event.timestamp)}</p>
                     </div>
                   </div>
                 ))}
               </div>
             ) : (
-              <div className="mt-5 rounded-2xl border border-dashed border-gray-700 p-4 text-sm text-gray-400">
+              <div className="mt-5 rounded-2xl border border-dashed border-slate-800 p-4 text-sm text-slate-400">
                 还没有捕获到实时事件，当前仍回退使用状态摘要。
               </div>
             )}
-          </div>
-
-          <div className="mt-8 flex flex-wrap gap-3">
-            <button
-              onClick={openTerminal}
-              className="px-5 py-3 rounded-2xl bg-sky-400 text-slate-950 font-medium hover:bg-sky-300"
-            >
-              打开终端接管
-            </button>
-            <button
-              onClick={() => void loadTask(task.id)}
-              className="px-5 py-3 rounded-2xl bg-gray-700 text-gray-200 hover:bg-gray-600"
-            >
-              刷新状态
-            </button>
-          </div>
         </section>
+        </main>
       </div>
     </div>
   );
@@ -211,11 +207,13 @@ const eventDotStyles: Record<TaskEventKind, string> = {
   tool_step: 'bg-sky-400',
 }
 
-function InfoCard({ label, value }: { label: string; value: string }) {
+function InfoCard({ label, value, compact }: { label: string; value: string; compact?: boolean }) {
   return (
-    <div className="rounded-2xl border border-gray-700 bg-gray-900/60 p-4">
-      <p className="text-xs uppercase tracking-wide text-gray-500">{label}</p>
-      <p className="text-sm text-gray-100 mt-2 break-all">{value}</p>
+    <div className="min-w-0 rounded-2xl border border-cyan-400/10 bg-slate-950/60 p-3">
+      <p className="text-[10px] uppercase tracking-wide text-slate-500">{label}</p>
+      <p className={`mt-2 min-w-0 text-slate-100 ${compact ? 'truncate text-xs' : 'break-words text-sm'}`}>
+        {value}
+      </p>
     </div>
   );
 }

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { getApiBaseUrl } from '@/lib/api';
+import { LogoutConfirmButton } from '@/components/logout-confirm-button';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -50,21 +51,22 @@ export default function LoginPage() {
     }
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user_id');
-    localStorage.removeItem('email');
-  };
-
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-900">
-      <form onSubmit={handleSubmit} className="bg-gray-800 p-8 rounded-lg w-96 max-w-[90vw]">
-        <h1 className="text-2xl text-white mb-6">
-          {isRegister ? '注册' : '登录'}
+    <div className="flex min-h-screen items-center justify-center bg-[#020816] px-4 text-slate-100">
+      <form
+        onSubmit={handleSubmit}
+        className="w-full max-w-sm rounded-[28px] border border-cyan-400/10 bg-[radial-gradient(circle_at_top_right,rgba(14,165,233,0.22),transparent_35%),linear-gradient(180deg,rgba(15,23,42,0.96),rgba(2,8,22,0.96))] p-6 shadow-[0_24px_90px_rgba(0,0,0,0.42)]"
+      >
+        <p className="text-[11px] uppercase tracking-[0.24em] text-cyan-300">MobileCoder</p>
+        <h1 className="mt-3 text-3xl font-black tracking-tight text-slate-50">
+          {isRegister ? '创建账号' : '登录控制塔台'}
         </h1>
+        <p className="mt-2 text-sm leading-5 text-slate-400">
+          在手机上监督 AI coding 任务，必要时快速接管终端。
+        </p>
 
         {error && (
-          <div className="bg-red-500 text-white p-3 rounded mb-4">
+          <div className="mt-5 rounded-2xl border border-rose-400/20 bg-rose-500/10 p-3 text-sm text-rose-100">
             {error}
           </div>
         )}
@@ -74,7 +76,7 @@ export default function LoginPage() {
           placeholder="邮箱"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          className="w-full p-3 mb-4 bg-gray-700 text-white rounded"
+          className="mt-6 w-full rounded-2xl border border-cyan-400/10 bg-slate-900 px-4 py-3 text-white outline-none placeholder:text-slate-600 focus:border-cyan-300/50"
           required
         />
 
@@ -83,28 +85,24 @@ export default function LoginPage() {
           placeholder="密码"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          className="w-full p-3 mb-6 bg-gray-700 text-white rounded"
+          className="mt-3 w-full rounded-2xl border border-cyan-400/10 bg-slate-900 px-4 py-3 text-white outline-none placeholder:text-slate-600 focus:border-cyan-300/50"
           required
         />
 
         <button
           type="submit"
-          className="w-full bg-blue-600 text-white p-3 rounded hover:bg-blue-700"
+          className="mt-5 w-full rounded-2xl bg-cyan-300 p-3 font-black text-slate-950 transition active:scale-[0.99]"
         >
           {isRegister ? '注册' : '登录'}
         </button>
 
-        <p className="text-gray-400 mt-4 text-center cursor-pointer" onClick={() => setIsRegister(!isRegister)}>
+        <p className="mt-4 cursor-pointer text-center text-sm text-slate-400" onClick={() => setIsRegister(!isRegister)}>
           {isRegister ? '已有账号？登录' : '没有账号？注册'}
         </p>
 
-        <button
-          type="button"
-          onClick={handleLogout}
-          className="w-full mt-4 text-gray-500 text-sm hover:text-gray-400"
-        >
+        <LogoutConfirmButton className="mt-4 w-full text-sm text-slate-600 hover:text-slate-400">
           退出登录
-        </button>
+        </LogoutConfirmButton>
       </form>
     </div>
   );
