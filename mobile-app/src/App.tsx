@@ -3,6 +3,10 @@ import LoginPage from './pages/LoginPage'
 import DevicesPage from './pages/DevicesPage'
 import DeviceDetailPage from './pages/DeviceDetailPage'
 import TerminalPage from './pages/TerminalPage'
+import TasksPage from './pages/TasksPage'
+import TaskDetailPage from './pages/TaskDetailPage'
+import NotificationsPage from './pages/NotificationsPage'
+import { NotificationRuntime } from './components/NotificationBell'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const token = localStorage.getItem('token')
@@ -15,11 +19,27 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 export default function App() {
   return (
     <BrowserRouter>
+      <NotificationRuntime />
       <Routes>
         <Route path="/login" element={<LoginPage />} />
         <Route path="/devices" element={
           <ProtectedRoute>
             <DevicesPage />
+          </ProtectedRoute>
+        } />
+        <Route path="/tasks" element={
+          <ProtectedRoute>
+            <TasksPage />
+          </ProtectedRoute>
+        } />
+        <Route path="/tasks/:taskId" element={
+          <ProtectedRoute>
+            <TaskDetailPage />
+          </ProtectedRoute>
+        } />
+        <Route path="/notifications" element={
+          <ProtectedRoute>
+            <NotificationsPage />
           </ProtectedRoute>
         } />
         <Route path="/devices/:deviceId" element={
@@ -32,7 +52,7 @@ export default function App() {
             <TerminalPage />
           </ProtectedRoute>
         } />
-        <Route path="/" element={<Navigate to="/devices" replace />} />
+        <Route path="/" element={<Navigate to="/tasks" replace />} />
       </Routes>
     </BrowserRouter>
   )

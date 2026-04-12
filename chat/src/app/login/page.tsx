@@ -15,7 +15,7 @@ export default function LoginPage() {
   useEffect(() => {
     const token = localStorage.getItem('token');
     if (token) {
-      router.push('/devices');
+      router.push('/tasks');
     }
   }, [router]);
 
@@ -44,7 +44,7 @@ export default function LoginPage() {
       localStorage.setItem('user_id', String(data.user_id));
       localStorage.setItem('email', data.email);
 
-      router.push('/devices');
+      router.push('/tasks');
     } catch {
       setError('网络错误');
     }

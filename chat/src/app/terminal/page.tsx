@@ -6,6 +6,7 @@ import Terminal from '../components/Terminal';
 
 function TerminalContent() {
   const [deviceId, setDeviceId] = useState('');
+  const [taskId, setTaskId] = useState('');
   const [connected, setConnected] = useState(false);
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -14,16 +15,26 @@ function TerminalContent() {
     const deviceIdFromUrl = searchParams.get('device_id');
     const deviceIdFromStorage = localStorage.getItem('device_id');
     const deviceId = deviceIdFromUrl || deviceIdFromStorage;
+    const taskIdFromUrl = searchParams.get('task_id') || '';
 
     if (!deviceId) {
       router.push('/login');
       return;
     }
     setDeviceId(deviceId);
+    setTaskId(taskIdFromUrl);
   }, [searchParams, router]);
 
   const reconnect = () => {
     window.location.reload();
+  };
+
+  const goBack = () => {
+    if (taskId) {
+      router.push(`/tasks/${encodeURIComponent(taskId)}`);
+      return;
+    }
+    router.back();
   };
 
   if (!deviceId) {
@@ -35,7 +46,7 @@ function TerminalContent() {
       {/* 合并的头部：返回 + 连接状态 + 重连 */}
       <div className="flex items-center justify-between px-3 py-2 border-b border-gray-800" style={{ backgroundColor: '#111827' }}>
         <button
-          onClick={() => router.back()}
+          onClick={goBack}
           style={{ color: '#9ca3af' }}
           className="hover:text-white text-lg"
         >

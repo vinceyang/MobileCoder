@@ -7,8 +7,8 @@ export default function Home() {
   const router = useRouter();
 
   useEffect(() => {
-    // 直接跳转到登录页面
-    router.push('/login');
+    const token = localStorage.getItem('token');
+    router.push(token ? '/tasks' : '/login');
   }, [router]);
 
   return (

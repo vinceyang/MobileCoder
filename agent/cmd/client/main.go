@@ -148,6 +148,85 @@ func getBindCodePath() string {
 	return filepath.Join(homeDir, ".MobileCoder", "bind-code")
 }
 
+func getAgentTokenPath() string {
+	homeDir, _ := os.UserHomeDir()
+	return filepath.Join(homeDir, ".MobileCoder", "agent-token")
+}
+
+type deviceCheckResponse struct {
+	Valid      bool   `json:"valid"`
+	Bound      bool   `json:"bound"`
+	Status     string `json:"status"`
+	AgentToken string `json:"agent_token"`
+}
+
+func checkDevice(serverURL, deviceID, bindCode string) (deviceCheckResponse, error) {
+	payload := map[string]string{"device_id": deviceID}
+	if bindCode != "" {
+		payload["bind_code"] = bindCode
+	}
+	body, err := json.Marshal(payload)
+	if err != nil {
+		return deviceCheckResponse{}, err
+	}
+	resp, err := http.Post("http://"+serverURL+"/api/device/check", "application/json",
+		strings.NewReader(string(body)))
+	if err != nil {
+		return deviceCheckResponse{}, err
+	}
+	defer resp.Body.Close()
+
+	var result deviceCheckResponse
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return deviceCheckResponse{}, err
+	}
+	return result, nil
+}
+
+func clearBindCode() error {
+	err := os.Remove(getBindCodePath())
+	if err != nil && !os.IsNotExist(err) {
+		return err
+	}
+	return nil
+}
+
+func loadAgentToken() string {
+	data, err := os.ReadFile(getAgentTokenPath())
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(data))
+}
+
+func saveAgentToken(token string) error {
+	if err := os.MkdirAll(filepath.Dir(getAgentTokenPath()), 0755); err != nil {
+		return err
+	}
+	return os.WriteFile(getAgentTokenPath(), []byte(token), 0644)
+}
+
+func waitForDeviceBinding(serverURL, deviceID, bindCode string, timeout, interval time.Duration) error {
+	if bindCode == "" {
+		return nil
+	}
+
+	deadline := time.Now().Add(timeout)
+	for {
+		result, err := checkDevice(serverURL, deviceID, bindCode)
+		if err == nil && result.Valid && result.Bound && result.AgentToken != "" {
+			if err := saveAgentToken(result.AgentToken); err != nil {
+				return err
+			}
+			return clearBindCode()
+		}
+		if time.Now().After(deadline) {
+			return fmt.Errorf("binding timed out for code %s", bindCode)
+		}
+		time.Sleep(interval)
+	}
+}
+
 // loadOrCreateDeviceID loads existing device_id or creates a new one
 func loadOrCreateDeviceID(serverURL string) (string, string, error) {
 	deviceIDPath := getDeviceIDPath()
@@ -158,20 +237,23 @@ func loadOrCreateDeviceID(serverURL string) (string, string, error) {
 		deviceID := strings.TrimSpace(string(data))
 		if deviceID != "" {
 			// Check if device_id is still valid
-			resp, err := http.Post("http://"+serverURL+"/api/device/check", "application/json",
-				strings.NewReader(`{"device_id":"`+deviceID+`"}`))
-			if err == nil {
-				defer resp.Body.Close()
-				var result map[string]interface{}
-				json.NewDecoder(resp.Body).Decode(&result)
-				if valid, ok := result["valid"].(bool); ok && valid {
-					// Load bind_code
-					bindCode := ""
-					if data, err := os.ReadFile(bindCodePath); err == nil {
-						bindCode = strings.TrimSpace(string(data))
+			result, err := checkDevice(serverURL, deviceID, "")
+			if err == nil && result.Valid {
+				if loadAgentToken() != "" {
+					if err := clearBindCode(); err != nil {
+						return "", "", err
 					}
-					return deviceID, bindCode, nil
+					return deviceID, "", nil
 				}
+
+				bindCode := ""
+				if data, err := os.ReadFile(bindCodePath); err == nil {
+					bindCode = strings.TrimSpace(string(data))
+				}
+				if bindCode == "" {
+					return "", "", fmt.Errorf("device %s requires rebind to obtain agent token", deviceID)
+				}
+				return deviceID, bindCode, nil
 			}
 		}
 	}
@@ -209,44 +291,26 @@ func loadOrCreateDeviceID(serverURL string) (string, string, error) {
 	return deviceID, bindCode, nil
 }
 
-// keyToTmux 将按键映射到 tmux 格式（使用转义序列）
-func keyToTmux(key string, modifiers []interface{}) string {
-	// 使用转义序列的按键映射
-	// 使用 raw string 避免转义问题
-	keyMap := map[string]string{
-		"Enter":     string(rune(13)),  // \r
-		"Tab":       string(rune(9)),   // \t
-		"Escape":    string(rune(27)),   // \e
-		"Backspace": string(rune(127)),  // DEL
-		"Delete":    "\x1b[3~",
-		"Up":        "\x1b[A",
-		"Down":      "\x1b[B",
-		"Right":     "\x1b[C",
-		"Left":     "\x1b[D",
-		"Home":     "\x1b[H",
-		"End":      "\x1b[F",
-		"PageUp":   "\x1b[5~",
-		"PageDown": "\x1b[6~",
-		"F1":       "\x1bOP",
-		"F2":       "\x1bOQ",
-		"F3":       "\x1bOR",
-		"F4":       "\x1bOS",
-		"F5":       "\x1b[15~",
-		"F6":       "\x1b[17~",
-		"F7":       "\x1b[18~",
-		"F8":       "\x1b[19~",
-		"F9":       "\x1b[20~",
-		"F10":      "\x1b[21~",
-		"F11":      "\x1b[23~",
-		"F12":      "\x1b[24~",
+func terminalInputToTmuxCommands(sessionName string, payload map[string]interface{}) [][]string {
+	action, _ := payload["action"].(string)
+	if action == "key" {
+		key, _ := payload["key"].(string)
+		modifiers, _ := payload["modifiers"].([]interface{})
+		return [][]string{tmuxKeyCommand(sessionName, key, modifiers)}
 	}
 
-	tmuxKey, exists := keyMap[key]
-	if !exists {
-		tmuxKey = key
-	}
+	content, _ := payload["content"].(string)
+	content = strings.TrimRight(content, "\r\n")
 
-	// 处理修饰键
+	commands := make([][]string, 0, 2)
+	if content != "" {
+		commands = append(commands, []string{"send-keys", "-t", sessionName, "-l", content})
+	}
+	commands = append(commands, []string{"send-keys", "-t", sessionName, "C-m"})
+	return commands
+}
+
+func tmuxKeyCommand(sessionName string, key string, modifiers []interface{}) []string {
 	hasCtrl := false
 	hasShift := false
 
@@ -260,17 +324,58 @@ func keyToTmux(key string, modifiers []interface{}) string {
 		}
 	}
 
-	// 对于 Ctrl+ 组合，使用 C- 格式
 	if hasCtrl && len(key) == 1 {
-		// 转为 Ctrl+字母 (a-z 对应 \x01-\x1a)
-		lowerKey := strings.ToLower(key)
-		tmuxKey = string(rune(lowerKey[0] - 'a' + 1))
-	} else if hasShift && len(key) == 1 {
-		// Shift+ 字母
-		tmuxKey = strings.ToUpper(key)
+		return []string{"send-keys", "-t", sessionName, "C-" + strings.ToLower(key)}
 	}
 
-	return tmuxKey
+	if hasShift && key == "Tab" {
+		return []string{"send-keys", "-t", sessionName, "BTab"}
+	}
+
+	keyMap := map[string]string{
+		"Enter":     "C-m",
+		"Tab":       "Tab",
+		"Escape":    "Escape",
+		"Backspace": "BSpace",
+		"Delete":    "Delete",
+		"Up":        "Up",
+		"Down":      "Down",
+		"Right":     "Right",
+		"Left":      "Left",
+		"Home":      "Home",
+		"End":       "End",
+		"PageUp":    "PageUp",
+		"PageDown":  "PageDown",
+		"F1":        "F1",
+		"F2":        "F2",
+		"F3":        "F3",
+		"F4":        "F4",
+		"F5":        "F5",
+		"F6":        "F6",
+		"F7":        "F7",
+		"F8":        "F8",
+		"F9":        "F9",
+		"F10":       "F10",
+		"F11":       "F11",
+		"F12":       "F12",
+	}
+	if tmuxKey, ok := keyMap[key]; ok {
+		return []string{"send-keys", "-t", sessionName, tmuxKey}
+	}
+
+	if hasShift && len(key) == 1 {
+		key = strings.ToUpper(key)
+	}
+	return []string{"send-keys", "-t", sessionName, "-l", key}
+}
+
+func isLiteralTmuxInput(args []string) bool {
+	for _, arg := range args {
+		if arg == "-l" {
+			return true
+		}
+	}
+	return false
 }
 
 func main() {
@@ -336,9 +441,12 @@ func main() {
 		fmt.Println("==========================================")
 		fmt.Printf("  绑定码: %s\n", bindCode)
 		fmt.Println("==========================================")
-		fmt.Println("\n请在 H5 页面输入绑定码后按回车继续...")
-		var input string
-		fmt.Scanln(&input)
+		fmt.Println()
+		fmt.Println("等待 H5 页面完成绑定...")
+		if err := waitForDeviceBinding(*serverURL, deviceID, bindCode, 10*time.Minute, 2*time.Second); err != nil {
+			log.Fatalf("Device binding failed: %v", err)
+		}
+		fmt.Println("设备绑定成功，继续启动...")
 	} else {
 		// 已绑定，直接重连
 		fmt.Println("设备已绑定，自动重连中...")
@@ -370,7 +478,15 @@ func main() {
 	deviceName := getDeviceName()
 	go func() {
 		updateData := fmt.Sprintf(`{"device_id":"%s","device_name":"%s"}`, deviceID, deviceName)
-		resp, err := http.Post("http://"+*serverURL+"/api/device/update", "application/json", strings.NewReader(updateData))
+		req, err := http.NewRequest("POST", "http://"+*serverURL+"/api/device/update", strings.NewReader(updateData))
+		if err != nil {
+			return
+		}
+		req.Header.Set("Content-Type", "application/json")
+		if token := loadAgentToken(); token != "" {
+			req.Header.Set("Authorization", token)
+		}
+		resp, err := http.DefaultClient.Do(req)
 		if err == nil {
 			defer resp.Body.Close()
 		}
@@ -400,36 +516,35 @@ func main() {
 		// 设置历史记录大小
 		exec.Command("tmux", "-u", "set-option", "-t", sessionName, "history-limit", fmt.Sprintf("%d", historyLimit)).Run()
 	} else {
-		// session 已存在，发送 Ctrl+C 停止当前，然后发送继续命令
-		exec.Command("tmux", "-u", "send-keys", "-t", sessionName, "C-c").Run()
-		time.Sleep(300 * time.Millisecond)
-		// 设置 history-limit（如果已存在）
+		// session 已存在时只接管，不重启。对 Codex/Claude 发送 Ctrl+C 可能会让
+		// 唯一 pane 退出并销毁 tmux session，导致 H5 看起来在线但无法接收输入。
 		exec.Command("tmux", "-u", "set-option", "-t", sessionName, "history-limit", fmt.Sprintf("%d", historyLimit)).Run()
-		if tool == AIClientClaude {
-			fullArgs := []string{"-u", "send-keys", "-t", sessionName, "env", "-u", "CLAUDECODE", cmdName, "-c", "--dangerously-skip-permissions"}
-			fullArgs = append(fullArgs, "\r")
-			exec.Command("tmux", fullArgs...).Run()
-		} else {
-			fullArgs := []string{"-u", "send-keys", "-t", sessionName, cmdName}
-			fullArgs = append(fullArgs, cmdArgs...)
-			fullArgs = append(fullArgs, "\r")
-			exec.Command("tmux", fullArgs...).Run()
-		}
 	}
 
 	// 向服务器注册 session
 	sessionJSON := fmt.Sprintf(`{"device_id":"%s","session_name":"%s","project_path":"%s"}`, deviceID, sessionName, projectPath)
 	log.Printf("Registering session: %s", sessionJSON)
-	resp, err := http.Post("http://"+*serverURL+"/api/sessions", "application/json", strings.NewReader(sessionJSON))
-	if err == nil {
-		defer resp.Body.Close()
-		var result map[string]interface{}
-		json.NewDecoder(resp.Body).Decode(&result)
-		if sessionID, ok := result["session_id"].(float64); ok {
-			log.Printf("Session registered: %d, name: %s", int(sessionID), sessionName)
-		}
+	req, err := http.NewRequest("POST", "http://"+*serverURL+"/api/sessions", strings.NewReader(sessionJSON))
+	if err != nil {
+		log.Printf("Session registration request build failed: %v", err)
 	} else {
-		log.Printf("Session registration failed: %v", err)
+		req.Header.Set("Content-Type", "application/json")
+		if token := loadAgentToken(); token != "" {
+			req.Header.Set("Authorization", token)
+		}
+		resp, err := http.DefaultClient.Do(req)
+		if err == nil {
+			defer resp.Body.Close()
+			var result map[string]interface{}
+			json.NewDecoder(resp.Body).Decode(&result)
+			if sessionID, ok := result["session_id"].(float64); ok {
+				log.Printf("Session registered: %d, name: %s", int(sessionID), sessionName)
+			} else if resp.StatusCode >= 400 {
+				log.Printf("Session registration failed: status=%d body=%v", resp.StatusCode, result)
+			}
+		} else {
+			log.Printf("Session registration failed: %v", err)
+		}
 	}
 
 	// 捕获终端输出并发送到 H5
@@ -467,46 +582,14 @@ func main() {
 			log.Printf("Received WS message: %s", string(data))
 			if msg["type"] == "terminal_input" {
 				payload := msg["payload"].(map[string]interface{})
-
-				// 检查是否是特殊按键
-				action, _ := payload["action"].(string)
-				if action == "key" {
-					// 处理特殊按键
-					key, _ := payload["key"].(string)
-					modifiers, _ := payload["modifiers"].([]interface{})
-
-					tmuxKey := keyToTmux(key, modifiers)
-					log.Printf("H5 key: %s, modifiers: %v -> tmux: %s", key, modifiers, tmuxKey)
-
-					// 发送按键到 tmux，使用 -l  literal 模式发送转义序列
-					exec.Command("tmux", "send-keys", "-t", sessionName, "-l", tmuxKey).Run()
-
-					// 特殊按键不需要额外 Enter
-					// 这些按键已经包含执行
-					isSpecialKey := key == "Enter" || key == "Tab" || key == "Escape" ||
-						key == "Up" || key == "Down" || key == "Left" || key == "Right" ||
-						key == "Backspace" || key == "Delete" || key == "Home" || key == "End" ||
-						key == "PageUp" || key == "PageDown" ||
-						strings.HasPrefix(key, "F")
-
-					if !isSpecialKey && len(key) > 1 {
-						// 非特殊的功能键（如 Ctrl+A）发送后需要 Enter 执行
-						exec.Command("tmux", "send-keys", "-t", sessionName, "-l", "\r").Run()
+				for _, args := range terminalInputToTmuxCommands(sessionName, payload) {
+					log.Printf("tmux %s", strings.Join(args, " "))
+					if err := exec.Command("tmux", args...).Run(); err != nil {
+						log.Printf("tmux send failed: %v", err)
 					}
-				} else {
-					// 处理普通文本输入
-					content, _ := payload["content"].(string)
-					log.Printf("H5 input: %q, session: %s", content, sessionName)
-
-					// 去掉末尾的换行符，单独发送
-					content = strings.TrimSuffix(content, "\n")
-
-					// 发送内容
-					exec.Command("tmux", "send-keys", "-t", sessionName, "-l", content).Run()
-					// 发送回车
-					exec.Command("tmux", "send-keys", "-t", sessionName, "-l", "\r").Run()
-
-					log.Printf("Sent to tmux")
+					if isLiteralTmuxInput(args) {
+						time.Sleep(150 * time.Millisecond)
+					}
 				}
 			}
 		})

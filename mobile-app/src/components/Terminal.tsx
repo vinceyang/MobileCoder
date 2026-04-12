@@ -23,17 +23,20 @@ const getWSUrl = (deviceId: string, sessionName: string, token: string) => {
 export default function Terminal({ deviceId }: TerminalProps) {
   const [output, setOutput] = useState('')
   const [input, setInput] = useState('')
-  const [connected, setConnected] = useState(false)
+  const [connectionState, setConnectionState] = useState<'connecting' | 'connected' | 'disconnected'>('connecting')
   const [mode, setMode] = useState<'text' | 'keys'>('keys')
   const [lastKey, setLastKey] = useState<string>('')
   const wsRef = useRef<WebSocket | null>(null)
   const outputRef = useRef<HTMLDivElement>(null)
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const reconnectAttemptsRef = useRef(0)
+  const connectionAttemptRef = useRef(0)
 
   const sessionName = localStorage.getItem('session_name') || ''
 
   const connect = () => {
+    const connectionAttempt = ++connectionAttemptRef.current
+
     // Clean up existing connection
     if (wsRef.current) {
       wsRef.current.close()
@@ -41,19 +44,23 @@ export default function Terminal({ deviceId }: TerminalProps) {
     }
     if (reconnectTimeoutRef.current) {
       clearTimeout(reconnectTimeoutRef.current)
+      reconnectTimeoutRef.current = null
     }
 
+    setConnectionState('connecting')
     const token = localStorage.getItem('token') || 'viewer'
     const wsUrl = getWSUrl(deviceId, sessionName, token)
     const ws = new WebSocket(wsUrl)
 
     ws.onopen = () => {
-      setConnected(true)
+      if (connectionAttempt !== connectionAttemptRef.current) return
+      setConnectionState('connected')
       reconnectAttemptsRef.current = 0
     }
 
     ws.onclose = () => {
-      setConnected(false)
+      if (connectionAttempt !== connectionAttemptRef.current) return
+      setConnectionState('disconnected')
       wsRef.current = null
 
       // Auto reconnect with exponential backoff
@@ -63,7 +70,8 @@ export default function Terminal({ deviceId }: TerminalProps) {
     }
 
     ws.onerror = () => {
-      // Ignore errors
+      if (connectionAttempt !== connectionAttemptRef.current) return
+      setConnectionState('disconnected')
     }
 
     ws.onmessage = (event) => {
@@ -83,6 +91,7 @@ export default function Terminal({ deviceId }: TerminalProps) {
     connect()
 
     return () => {
+      connectionAttemptRef.current++
       if (wsRef.current) {
         wsRef.current.close()
       }
@@ -163,14 +172,26 @@ export default function Terminal({ deviceId }: TerminalProps) {
     <div className="h-full bg-gray-900 flex flex-col overflow-hidden">
       <div className="flex items-center justify-between px-4 py-2 border-b border-gray-800">
         <div className="flex items-center gap-2">
-          <span className={`w-2 h-2 rounded-full ${connected ? 'bg-green-500' : 'bg-red-500'}`} />
+          <span
+            className={`w-2 h-2 rounded-full ${
+              connectionState === 'connected'
+                ? 'bg-emerald-400 shadow-[0_0_12px_rgba(52,211,153,0.45)]'
+                : connectionState === 'connecting'
+                  ? 'bg-amber-400 shadow-[0_0_12px_rgba(251,191,36,0.35)]'
+                  : 'bg-rose-400 shadow-[0_0_12px_rgba(251,113,133,0.35)]'
+            }`}
+          />
           <span className="text-xs text-gray-400">
-            {connected ? '已连接' : '重连中...'}
+            {connectionState === 'connected'
+              ? '已连接'
+              : connectionState === 'connecting'
+                ? '连接中...'
+                : '连接已断开'}
           </span>
         </div>
         <button
           onClick={connect}
-          className="text-xs text-blue-400 hover:text-blue-300"
+          className="text-xs text-cyan-300 hover:text-cyan-200"
         >
           重连
         </button>
@@ -179,7 +200,11 @@ export default function Terminal({ deviceId }: TerminalProps) {
       <div ref={outputRef} className="flex-1 overflow-auto p-4">
         {!output ? (
           <div className="text-gray-500 text-sm">
-            {connected ? '等待终端输出...' : '请启动 Desktop Agent 连接设备'}
+            {connectionState === 'connected'
+              ? '等待终端输出...'
+              : connectionState === 'connecting'
+                ? '正在建立终端连接...'
+                : '请启动 Desktop Agent 或点击重连'}
           </div>
         ) : (
           <pre className="whitespace-pre-wrap font-mono text-xs md:text-sm text-green-400">
@@ -189,7 +214,7 @@ export default function Terminal({ deviceId }: TerminalProps) {
       </div>
 
       {lastKey && (
-        <div className="fixed bottom-32 left-1/2 -translate-x-1/2 bg-blue-600/90 text-white px-3 py-1.5 rounded-lg text-xs animate-pulse z-50">
+        <div className="fixed bottom-32 left-1/2 z-50 -translate-x-1/2 rounded-lg bg-cyan-400/90 px-3 py-1.5 text-xs text-slate-950 animate-pulse">
           已发送: {lastKey}
         </div>
       )}
@@ -211,7 +236,7 @@ export default function Terminal({ deviceId }: TerminalProps) {
           />
           <button
             onClick={handleSend}
-            className="px-4 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-medium"
+            className="rounded-lg bg-cyan-400 px-4 py-3 font-medium text-slate-950 hover:bg-cyan-300"
           >
             发送
           </button>
@@ -232,8 +257,8 @@ export default function Terminal({ deviceId }: TerminalProps) {
                   onClick={() => sendKey(btn.key, btn.mods || [])}
                   className={`flex flex-col items-center justify-center py-2 rounded-lg active:scale-95 ${
                     btn.key.startsWith('/')
-                      ? 'bg-purple-700 hover:bg-purple-600 active:bg-purple-500'
-                      : 'bg-gray-700 hover:bg-gray-600 active:bg-blue-600'
+                      ? 'bg-[linear-gradient(180deg,rgba(34,211,238,0.28),rgba(8,47,73,0.98))] border border-cyan-300/25 hover:border-cyan-200/40 hover:bg-[linear-gradient(180deg,rgba(34,211,238,0.36),rgba(8,47,73,0.98))]'
+                      : 'bg-slate-700 hover:bg-slate-600 active:bg-cyan-700'
                   } text-white`}
                 >
                   <span className="font-mono font-bold text-sm">{btn.label}</span>
@@ -244,7 +269,7 @@ export default function Terminal({ deviceId }: TerminalProps) {
           </div>
           <button
             onClick={() => setMode('text')}
-            className="mt-2 w-full py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg"
+            className="mt-2 w-full rounded-lg bg-slate-700 py-2 text-white hover:bg-slate-600"
           >
             文本输入
           </button>

@@ -24,7 +24,7 @@ export default function LoginPage() {
       localStorage.setItem('user_id', String(data.user_id))
       localStorage.setItem('email', data.email)
 
-      navigate('/devices')
+      navigate('/tasks')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred')
     } finally {

@@ -1,0 +1,19 @@
+FROM docker.io/library/node:20-bookworm AS runner
+
+RUN apt-get update && apt-get install -y ca-certificates wget
+
+WORKDIR /app
+
+COPY .dist/server ./server
+COPY .dist/public ./public
+COPY .dist/chat ./chat
+
+RUN echo '#!/bin/sh\n\
+echo "Starting Cloud service..."\n\
+./server &\n\
+echo "Starting Chat service..."\n\
+cd chat && node server.js\n' > /start.sh && chmod +x /start.sh
+
+EXPOSE 8080 3000
+
+CMD ["/start.sh"]
