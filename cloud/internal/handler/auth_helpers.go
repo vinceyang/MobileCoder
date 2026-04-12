@@ -35,3 +35,16 @@ func ensureDeviceOwnership(device *service.Device, userID int64) error {
 	}
 	return nil
 }
+
+func ensureDeviceAccess(device *service.Device, claims *cloudauth.Claims, requestedDeviceID string) error {
+	if claims == nil || device == nil {
+		return errForbidden
+	}
+	if claims.TokenType == "agent" {
+		if claims.DeviceID == "" || claims.DeviceID != requestedDeviceID || device.DeviceID != requestedDeviceID || device.UserID != claims.UserID {
+			return errForbidden
+		}
+		return nil
+	}
+	return ensureDeviceOwnership(device, claims.UserID)
+}

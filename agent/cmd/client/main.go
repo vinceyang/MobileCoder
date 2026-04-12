@@ -148,6 +148,85 @@ func getBindCodePath() string {
 	return filepath.Join(homeDir, ".MobileCoder", "bind-code")
 }
 
+func getAgentTokenPath() string {
+	homeDir, _ := os.UserHomeDir()
+	return filepath.Join(homeDir, ".MobileCoder", "agent-token")
+}
+
+type deviceCheckResponse struct {
+	Valid      bool   `json:"valid"`
+	Bound      bool   `json:"bound"`
+	Status     string `json:"status"`
+	AgentToken string `json:"agent_token"`
+}
+
+func checkDevice(serverURL, deviceID, bindCode string) (deviceCheckResponse, error) {
+	payload := map[string]string{"device_id": deviceID}
+	if bindCode != "" {
+		payload["bind_code"] = bindCode
+	}
+	body, err := json.Marshal(payload)
+	if err != nil {
+		return deviceCheckResponse{}, err
+	}
+	resp, err := http.Post("http://"+serverURL+"/api/device/check", "application/json",
+		strings.NewReader(string(body)))
+	if err != nil {
+		return deviceCheckResponse{}, err
+	}
+	defer resp.Body.Close()
+
+	var result deviceCheckResponse
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return deviceCheckResponse{}, err
+	}
+	return result, nil
+}
+
+func clearBindCode() error {
+	err := os.Remove(getBindCodePath())
+	if err != nil && !os.IsNotExist(err) {
+		return err
+	}
+	return nil
+}
+
+func loadAgentToken() string {
+	data, err := os.ReadFile(getAgentTokenPath())
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(data))
+}
+
+func saveAgentToken(token string) error {
+	if err := os.MkdirAll(filepath.Dir(getAgentTokenPath()), 0755); err != nil {
+		return err
+	}
+	return os.WriteFile(getAgentTokenPath(), []byte(token), 0644)
+}
+
+func waitForDeviceBinding(serverURL, deviceID, bindCode string, timeout, interval time.Duration) error {
+	if bindCode == "" {
+		return nil
+	}
+
+	deadline := time.Now().Add(timeout)
+	for {
+		result, err := checkDevice(serverURL, deviceID, bindCode)
+		if err == nil && result.Valid && result.Bound && result.AgentToken != "" {
+			if err := saveAgentToken(result.AgentToken); err != nil {
+				return err
+			}
+			return clearBindCode()
+		}
+		if time.Now().After(deadline) {
+			return fmt.Errorf("binding timed out for code %s", bindCode)
+		}
+		time.Sleep(interval)
+	}
+}
+
 // loadOrCreateDeviceID loads existing device_id or creates a new one
 func loadOrCreateDeviceID(serverURL string) (string, string, error) {
 	deviceIDPath := getDeviceIDPath()
@@ -158,20 +237,23 @@ func loadOrCreateDeviceID(serverURL string) (string, string, error) {
 		deviceID := strings.TrimSpace(string(data))
 		if deviceID != "" {
 			// Check if device_id is still valid
-			resp, err := http.Post("http://"+serverURL+"/api/device/check", "application/json",
-				strings.NewReader(`{"device_id":"`+deviceID+`"}`))
-			if err == nil {
-				defer resp.Body.Close()
-				var result map[string]interface{}
-				json.NewDecoder(resp.Body).Decode(&result)
-				if valid, ok := result["valid"].(bool); ok && valid {
-					// Load bind_code
-					bindCode := ""
-					if data, err := os.ReadFile(bindCodePath); err == nil {
-						bindCode = strings.TrimSpace(string(data))
+			result, err := checkDevice(serverURL, deviceID, "")
+			if err == nil && result.Valid {
+				if loadAgentToken() != "" {
+					if err := clearBindCode(); err != nil {
+						return "", "", err
 					}
-					return deviceID, bindCode, nil
+					return deviceID, "", nil
 				}
+
+				bindCode := ""
+				if data, err := os.ReadFile(bindCodePath); err == nil {
+					bindCode = strings.TrimSpace(string(data))
+				}
+				if bindCode == "" {
+					return "", "", fmt.Errorf("device %s requires rebind to obtain agent token", deviceID)
+				}
+				return deviceID, bindCode, nil
 			}
 		}
 	}
@@ -336,9 +418,12 @@ func main() {
 		fmt.Println("==========================================")
 		fmt.Printf("  绑定码: %s\n", bindCode)
 		fmt.Println("==========================================")
-		fmt.Println("\n请在 H5 页面输入绑定码后按回车继续...")
-		var input string
-		fmt.Scanln(&input)
+		fmt.Println()
+		fmt.Println("等待 H5 页面完成绑定...")
+		if err := waitForDeviceBinding(*serverURL, deviceID, bindCode, 10*time.Minute, 2*time.Second); err != nil {
+			log.Fatalf("Device binding failed: %v", err)
+		}
+		fmt.Println("设备绑定成功，继续启动...")
 	} else {
 		// 已绑定，直接重连
 		fmt.Println("设备已绑定，自动重连中...")
@@ -370,7 +455,15 @@ func main() {
 	deviceName := getDeviceName()
 	go func() {
 		updateData := fmt.Sprintf(`{"device_id":"%s","device_name":"%s"}`, deviceID, deviceName)
-		resp, err := http.Post("http://"+*serverURL+"/api/device/update", "application/json", strings.NewReader(updateData))
+		req, err := http.NewRequest("POST", "http://"+*serverURL+"/api/device/update", strings.NewReader(updateData))
+		if err != nil {
+			return
+		}
+		req.Header.Set("Content-Type", "application/json")
+		if token := loadAgentToken(); token != "" {
+			req.Header.Set("Authorization", token)
+		}
+		resp, err := http.DefaultClient.Do(req)
 		if err == nil {
 			defer resp.Body.Close()
 		}
@@ -420,16 +513,27 @@ func main() {
 	// 向服务器注册 session
 	sessionJSON := fmt.Sprintf(`{"device_id":"%s","session_name":"%s","project_path":"%s"}`, deviceID, sessionName, projectPath)
 	log.Printf("Registering session: %s", sessionJSON)
-	resp, err := http.Post("http://"+*serverURL+"/api/sessions", "application/json", strings.NewReader(sessionJSON))
-	if err == nil {
-		defer resp.Body.Close()
-		var result map[string]interface{}
-		json.NewDecoder(resp.Body).Decode(&result)
-		if sessionID, ok := result["session_id"].(float64); ok {
-			log.Printf("Session registered: %d, name: %s", int(sessionID), sessionName)
-		}
+	req, err := http.NewRequest("POST", "http://"+*serverURL+"/api/sessions", strings.NewReader(sessionJSON))
+	if err != nil {
+		log.Printf("Session registration request build failed: %v", err)
 	} else {
-		log.Printf("Session registration failed: %v", err)
+		req.Header.Set("Content-Type", "application/json")
+		if token := loadAgentToken(); token != "" {
+			req.Header.Set("Authorization", token)
+		}
+		resp, err := http.DefaultClient.Do(req)
+		if err == nil {
+			defer resp.Body.Close()
+			var result map[string]interface{}
+			json.NewDecoder(resp.Body).Decode(&result)
+			if sessionID, ok := result["session_id"].(float64); ok {
+				log.Printf("Session registered: %d, name: %s", int(sessionID), sessionName)
+			} else if resp.StatusCode >= 400 {
+				log.Printf("Session registration failed: status=%d body=%v", resp.StatusCode, result)
+			}
+		} else {
+			log.Printf("Session registration failed: %v", err)
+		}
 	}
 
 	// 捕获终端输出并发送到 H5

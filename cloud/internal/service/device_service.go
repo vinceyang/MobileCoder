@@ -265,6 +265,9 @@ func (s *DeviceService) BindDeviceToUser(bindCode string, userID int64) (*Device
 	if err != nil {
 		return nil, ErrDeviceNotFound
 	}
+	if device.UserID > 0 {
+		return nil, errors.New("device already bound")
+	}
 
 	// 检查用户已绑定设备数量
 	userDevices, err := s.db.GetUserDevices(userID)
@@ -278,17 +281,12 @@ func (s *DeviceService) BindDeviceToUser(bindCode string, userID int64) (*Device
 		return nil, err
 	}
 
-	// 清空绑定码
-	err = s.db.UpdateDeviceBindCode(device.DeviceID)
-	if err != nil {
-		return nil, err
-	}
-
 	return &Device{
 		ID:         device.ID,
 		UserID:     userID,
 		DeviceID:   device.DeviceID,
 		DeviceName: device.DeviceName,
+		BindCode:   bindCode,
 		Status:     "online",
 	}, nil
 }
@@ -304,9 +302,14 @@ func (s *DeviceService) GetDeviceByDeviceID(deviceID string) (*Device, error) {
 		UserID:       device.UserID,
 		DeviceID:     device.DeviceID,
 		DeviceName:   device.DeviceName,
+		BindCode:     device.BindCode,
 		Status:       device.Status,
 		LastActiveAt: device.LastActiveAt,
 	}, nil
+}
+
+func (s *DeviceService) UpdateDeviceBindCode(deviceID string) error {
+	return s.db.UpdateDeviceBindCode(deviceID)
 }
 
 // GetDeviceSessions 获取设备的所有 Session

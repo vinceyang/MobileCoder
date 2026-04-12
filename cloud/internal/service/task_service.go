@@ -162,7 +162,7 @@ func mapSessionToTask(device Device, session Session) Task {
 		DeviceName:     device.DeviceName,
 		SessionName:    session.SessionName,
 		ProjectPath:    session.ProjectPath,
-		Tool:           "claude",
+		Tool:           deriveTaskTool(session),
 		State:          state,
 		Summary:        deriveTaskSummary(state, session),
 		StateReason:    deriveTaskStateReason(state),
@@ -170,6 +170,20 @@ func mapSessionToTask(device Device, session Session) Task {
 		LastActivityAt: deriveLastActivityAt(device, session),
 	}
 	return task
+}
+
+func deriveTaskTool(session Session) string {
+	name := strings.ToLower(session.SessionName)
+	switch {
+	case strings.HasPrefix(name, "codex-"):
+		return "codex"
+	case strings.HasPrefix(name, "claude-"):
+		return "claude"
+	case strings.HasPrefix(name, "cursor-"):
+		return "cursor"
+	default:
+		return "unknown"
+	}
 }
 
 func (s *TaskService) enrichTask(task Task) Task {

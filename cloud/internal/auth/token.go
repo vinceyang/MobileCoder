@@ -19,7 +19,9 @@ var (
 
 type Claims struct {
 	UserID    int64  `json:"user_id"`
-	Email     string `json:"email"`
+	Email     string `json:"email,omitempty"`
+	DeviceID  string `json:"device_id,omitempty"`
+	TokenType string `json:"token_type,omitempty"`
 	ExpiresAt int64  `json:"expires_at"`
 }
 
@@ -41,6 +43,25 @@ func (m *Manager) Issue(userID int64, email string) (string, error) {
 	claims := Claims{
 		UserID:    userID,
 		Email:     email,
+		TokenType: "user",
+		ExpiresAt: m.now().Add(m.ttl).Unix(),
+	}
+
+	payload, err := json.Marshal(claims)
+	if err != nil {
+		return "", err
+	}
+
+	encodedPayload := base64.RawURLEncoding.EncodeToString(payload)
+	signature := m.sign(encodedPayload)
+	return encodedPayload + "." + signature, nil
+}
+
+func (m *Manager) IssueAgent(userID int64, deviceID string) (string, error) {
+	claims := Claims{
+		UserID:    userID,
+		DeviceID:  deviceID,
+		TokenType: "agent",
 		ExpiresAt: m.now().Add(m.ttl).Unix(),
 	}
 
@@ -74,7 +95,21 @@ func (m *Manager) Verify(token string) (*Claims, error) {
 		return nil, ErrInvalidToken
 	}
 
-	if claims.UserID == 0 || claims.Email == "" {
+	if claims.UserID == 0 {
+		return nil, ErrInvalidToken
+	}
+
+	switch claims.TokenType {
+	case "", "user":
+		if claims.Email == "" {
+			return nil, ErrInvalidToken
+		}
+		claims.TokenType = "user"
+	case "agent":
+		if claims.DeviceID == "" {
+			return nil, ErrInvalidToken
+		}
+	default:
 		return nil, ErrInvalidToken
 	}
 

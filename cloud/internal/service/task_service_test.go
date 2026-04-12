@@ -122,6 +122,9 @@ func TestTaskServiceListTasksForUser(t *testing.T) {
 	if tasks[0].Title == "" {
 		t.Fatal("tasks[0].Title should not be empty")
 	}
+	if tasks[0].Tool != "unknown" {
+		t.Fatalf("tasks[0].Tool = %q, want unknown", tasks[0].Tool)
+	}
 	if tasks[0].Summary == "" {
 		t.Fatal("tasks[0].Summary should not be empty")
 	}
@@ -146,6 +149,31 @@ func TestTaskServiceListTasksForUser(t *testing.T) {
 	}
 	if tasks[1].StateReason != "Device is offline" {
 		t.Fatalf("tasks[1].StateReason = %q, want %q", tasks[1].StateReason, "Device is offline")
+	}
+}
+
+func TestTaskServiceDerivesToolFromSessionName(t *testing.T) {
+	tests := []struct {
+		name        string
+		sessionName string
+		want        string
+	}{
+		{name: "codex", sessionName: "codex-c87ad2-MobileCoder", want: "codex"},
+		{name: "claude", sessionName: "claude-64b9c6-MobileCoder", want: "claude"},
+		{name: "cursor", sessionName: "cursor-a1b2c3-MobileCoder", want: "cursor"},
+		{name: "unknown", sessionName: "release-train", want: "unknown"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := mapSessionToTask(
+				Device{DeviceID: "dev-1", DeviceName: "MacBook", Status: "online"},
+				Session{DeviceID: "dev-1", SessionName: tt.sessionName, Status: "active"},
+			)
+			if got.Tool != tt.want {
+				t.Fatalf("Tool = %q, want %q", got.Tool, tt.want)
+			}
+		})
 	}
 }
 

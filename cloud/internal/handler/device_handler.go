@@ -36,6 +36,7 @@ type DeviceRegisterRequest struct {
 
 type DeviceCheckRequest struct {
 	DeviceID string `json:"device_id"`
+	BindCode string `json:"bind_code,omitempty"`
 }
 
 // Register allows Desktop Agent to register itself (no auth required)
@@ -175,10 +176,24 @@ func (h *DeviceHandler) CheckDevice(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
-		"valid":   true,
-		"status":  device.Status,
-	})
+	response := map[string]interface{}{
+		"valid":  true,
+		"bound":  device.UserID > 0,
+		"status": device.Status,
+	}
+	if device.UserID > 0 && req.BindCode != "" && req.BindCode == device.BindCode {
+		agentToken, err := h.tokenManager.IssueAgent(device.UserID, device.DeviceID)
+		if err != nil {
+			http.Error(w, "failed to issue agent token", http.StatusInternalServerError)
+			return
+		}
+		if err := h.deviceService.UpdateDeviceBindCode(device.DeviceID); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		response["agent_token"] = agentToken
+	}
+	json.NewEncoder(w).Encode(response)
 }
 
 // GetUserDevices 获取用户的所有设备
@@ -220,7 +235,7 @@ func (h *DeviceHandler) GetDeviceSessions(w http.ResponseWriter, r *http.Request
 		http.Error(w, err.Error(), http.StatusNotFound)
 		return
 	}
-	if err := ensureDeviceOwnership(device, claims.UserID); err != nil {
+	if err := ensureDeviceAccess(device, claims, deviceID); err != nil {
 		http.Error(w, err.Error(), http.StatusForbidden)
 		return
 	}
@@ -367,7 +382,7 @@ func (h *DeviceHandler) UpdateDevice(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusNotFound)
 		return
 	}
-	if err := ensureDeviceOwnership(device, claims.UserID); err != nil {
+	if err := ensureDeviceAccess(device, claims, req.DeviceID); err != nil {
 		http.Error(w, err.Error(), http.StatusForbidden)
 		return
 	}

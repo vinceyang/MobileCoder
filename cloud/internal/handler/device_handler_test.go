@@ -43,3 +43,35 @@ func TestEnsureDeviceOwnershipRejectsOtherUsersDevice(t *testing.T) {
 		t.Fatal("ensureDeviceOwnership succeeded for foreign device")
 	}
 }
+
+func TestEnsureDeviceAccessAcceptsMatchingAgentToken(t *testing.T) {
+	device := &service.Device{
+		UserID:   7,
+		DeviceID: "dev-1",
+	}
+	claims := &cloudauth.Claims{
+		UserID:    7,
+		DeviceID:  "dev-1",
+		TokenType: "agent",
+	}
+
+	if err := ensureDeviceAccess(device, claims, "dev-1"); err != nil {
+		t.Fatalf("ensureDeviceAccess returned error: %v", err)
+	}
+}
+
+func TestEnsureDeviceAccessRejectsForeignAgentToken(t *testing.T) {
+	device := &service.Device{
+		UserID:   7,
+		DeviceID: "dev-1",
+	}
+	claims := &cloudauth.Claims{
+		UserID:    7,
+		DeviceID:  "dev-2",
+		TokenType: "agent",
+	}
+
+	if err := ensureDeviceAccess(device, claims, "dev-1"); err == nil {
+		t.Fatal("ensureDeviceAccess succeeded for mismatched agent token")
+	}
+}
