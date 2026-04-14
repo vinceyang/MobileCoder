@@ -53,6 +53,30 @@ func TestManagerRejectsExpiredToken(t *testing.T) {
 	}
 }
 
+func TestManagerVerifiesExpiredTokenForRefresh(t *testing.T) {
+	manager := NewManager("test-secret", -time.Second)
+
+	token, err := manager.IssueAgent(42, "device-123")
+	if err != nil {
+		t.Fatalf("IssueAgent returned error: %v", err)
+	}
+
+	claims, err := manager.VerifyAllowExpired(token)
+	if err != nil {
+		t.Fatalf("VerifyAllowExpired returned error: %v", err)
+	}
+
+	if claims.UserID != 42 {
+		t.Fatalf("UserID = %d, want 42", claims.UserID)
+	}
+	if claims.DeviceID != "device-123" {
+		t.Fatalf("DeviceID = %q, want device-123", claims.DeviceID)
+	}
+	if claims.TokenType != "agent" {
+		t.Fatalf("TokenType = %q, want agent", claims.TokenType)
+	}
+}
+
 func TestManagerIssuesAndVerifiesAgentToken(t *testing.T) {
 	manager := NewManager("test-secret", time.Minute)
 

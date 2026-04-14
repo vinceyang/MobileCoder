@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -169,8 +170,15 @@ func checkDevice(serverURL, deviceID, bindCode string) (deviceCheckResponse, err
 	if err != nil {
 		return deviceCheckResponse{}, err
 	}
-	resp, err := http.Post("http://"+serverURL+"/api/device/check", "application/json",
-		strings.NewReader(string(body)))
+	req, err := http.NewRequest("POST", "http://"+serverURL+"/api/device/check", strings.NewReader(string(body)))
+	if err != nil {
+		return deviceCheckResponse{}, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	if token := loadAgentToken(); token != "" {
+		req.Header.Set("Authorization", token)
+	}
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return deviceCheckResponse{}, err
 	}
@@ -197,6 +205,29 @@ func loadAgentToken() string {
 		return ""
 	}
 	return strings.TrimSpace(string(data))
+}
+
+func agentTokenUsableForDevice(token string, deviceID string, now time.Time) bool {
+	if token == "" {
+		return false
+	}
+	parts := strings.Split(token, ".")
+	if len(parts) != 2 {
+		return false
+	}
+	payload, err := base64.RawURLEncoding.DecodeString(parts[0])
+	if err != nil {
+		return false
+	}
+	var claims struct {
+		TokenType string `json:"token_type"`
+		DeviceID  string `json:"device_id"`
+		ExpiresAt int64  `json:"expires_at"`
+	}
+	if err := json.Unmarshal(payload, &claims); err != nil {
+		return false
+	}
+	return claims.TokenType == "agent" && claims.DeviceID == deviceID && claims.ExpiresAt > now.Unix()
 }
 
 func saveAgentToken(token string) error {
@@ -239,7 +270,17 @@ func loadOrCreateDeviceID(serverURL string) (string, string, error) {
 			// Check if device_id is still valid
 			result, err := checkDevice(serverURL, deviceID, "")
 			if err == nil && result.Valid {
-				if loadAgentToken() != "" {
+				if result.AgentToken != "" {
+					if err := saveAgentToken(result.AgentToken); err != nil {
+						return "", "", err
+					}
+					if err := clearBindCode(); err != nil {
+						return "", "", err
+					}
+					return deviceID, "", nil
+				}
+
+				if agentTokenUsableForDevice(loadAgentToken(), deviceID, time.Now()) {
 					if err := clearBindCode(); err != nil {
 						return "", "", err
 					}

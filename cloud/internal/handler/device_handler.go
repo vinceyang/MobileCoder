@@ -61,9 +61,9 @@ func (h *DeviceHandler) Register(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
-		"device_id":   device.DeviceID,
-		"bind_code":   device.BindCode,
-		"expires_at":  device.BindCodeExp,
+		"device_id":  device.DeviceID,
+		"bind_code":  device.BindCode,
+		"expires_at": device.BindCodeExp,
 	})
 }
 
@@ -192,6 +192,16 @@ func (h *DeviceHandler) CheckDevice(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		response["agent_token"] = agentToken
+	} else if device.UserID > 0 && h.tokenManager != nil && r.Header.Get("Authorization") != "" {
+		claims, err := h.tokenManager.VerifyAllowExpired(r.Header.Get("Authorization"))
+		if err == nil && claims.TokenType == "agent" && claims.DeviceID == device.DeviceID && claims.UserID == device.UserID {
+			agentToken, err := h.tokenManager.IssueAgent(device.UserID, device.DeviceID)
+			if err != nil {
+				http.Error(w, "failed to issue agent token", http.StatusInternalServerError)
+				return
+			}
+			response["agent_token"] = agentToken
+		}
 	}
 	json.NewEncoder(w).Encode(response)
 }

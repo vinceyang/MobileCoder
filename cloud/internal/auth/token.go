@@ -76,6 +76,14 @@ func (m *Manager) IssueAgent(userID int64, deviceID string) (string, error) {
 }
 
 func (m *Manager) Verify(token string) (*Claims, error) {
+	return m.verify(token, false)
+}
+
+func (m *Manager) VerifyAllowExpired(token string) (*Claims, error) {
+	return m.verify(token, true)
+}
+
+func (m *Manager) verify(token string, allowExpired bool) (*Claims, error) {
 	parts := strings.Split(token, ".")
 	if len(parts) != 2 {
 		return nil, ErrInvalidToken
@@ -113,7 +121,7 @@ func (m *Manager) Verify(token string) (*Claims, error) {
 		return nil, ErrInvalidToken
 	}
 
-	if m.now().Unix() > claims.ExpiresAt {
+	if !allowExpired && m.now().Unix() > claims.ExpiresAt {
 		return nil, ErrExpiredToken
 	}
 
