@@ -25,6 +25,13 @@ type Claims struct {
 	ExpiresAt int64  `json:"expires_at"`
 }
 
+func (c *Claims) RenewableAt(now time.Time, window time.Duration) bool {
+	if c == nil || window <= 0 {
+		return false
+	}
+	return now.Unix() <= c.ExpiresAt+int64(window.Seconds())
+}
+
 type Manager struct {
 	secret []byte
 	ttl    time.Duration

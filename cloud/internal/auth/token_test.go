@@ -5,6 +5,63 @@ import (
 	"time"
 )
 
+func TestClaimsRenewableAt(t *testing.T) {
+	expiresAt := time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC)
+	window := 30 * 24 * time.Hour
+
+	tests := []struct {
+		name   string
+		claims *Claims
+		now    time.Time
+		window time.Duration
+		want   bool
+	}{
+		{
+			name:   "within window",
+			claims: &Claims{ExpiresAt: expiresAt.Unix()},
+			now:    expiresAt.Add(window),
+			window: window,
+			want:   true,
+		},
+		{
+			name:   "after window",
+			claims: &Claims{ExpiresAt: expiresAt.Unix()},
+			now:    expiresAt.Add(window).Add(time.Second),
+			window: window,
+			want:   false,
+		},
+		{
+			name:   "nil claims",
+			claims: nil,
+			now:    expiresAt,
+			window: window,
+			want:   false,
+		},
+		{
+			name:   "zero window",
+			claims: &Claims{ExpiresAt: expiresAt.Unix()},
+			now:    expiresAt,
+			window: 0,
+			want:   false,
+		},
+		{
+			name:   "negative window",
+			claims: &Claims{ExpiresAt: expiresAt.Unix()},
+			now:    expiresAt,
+			window: -time.Second,
+			want:   false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := tt.claims.RenewableAt(tt.now, tt.window); got != tt.want {
+				t.Fatalf("RenewableAt() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
 func TestManagerRoundTrip(t *testing.T) {
 	manager := NewManager("test-secret", time.Minute)
 

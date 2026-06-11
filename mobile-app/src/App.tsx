@@ -1,4 +1,5 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { useEffect } from 'react'
+import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom'
 import LoginPage from './pages/LoginPage'
 import DevicesPage from './pages/DevicesPage'
 import DeviceDetailPage from './pages/DeviceDetailPage'
@@ -7,6 +8,7 @@ import TasksPage from './pages/TasksPage'
 import TaskDetailPage from './pages/TaskDetailPage'
 import NotificationsPage from './pages/NotificationsPage'
 import { NotificationRuntime } from './components/NotificationBell'
+import { onAuthExpired } from './services/api'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const token = localStorage.getItem('token')
@@ -16,9 +18,16 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>
 }
 
+function AuthExpirationListener() {
+  const navigate = useNavigate()
+  useEffect(() => onAuthExpired(() => navigate('/login', { replace: true })), [navigate])
+  return null
+}
+
 export default function App() {
   return (
     <BrowserRouter>
+      <AuthExpirationListener />
       <NotificationRuntime />
       <Routes>
         <Route path="/login" element={<LoginPage />} />

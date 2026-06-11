@@ -110,6 +110,7 @@ func main() {
 	// Auth routes
 	mux.HandleFunc("/api/auth/register", authHandler.Register)
 	mux.HandleFunc("/api/auth/login", authHandler.Login)
+	mux.HandleFunc("/api/auth/refresh", authHandler.Refresh)
 
 	// Device routes
 	mux.HandleFunc("/api/device/register", deviceHandler.Register)

@@ -1,8 +1,5 @@
 import { getApiBaseUrl } from '../config/api'
-
-function getToken() {
-  return localStorage.getItem('token') || ''
-}
+import { authFetch } from './api'
 
 export interface Device {
   id: number
@@ -21,20 +18,14 @@ export interface Session {
 }
 
 export async function getDevices(): Promise<Device[]> {
-  const token = getToken()
-  const res = await fetch(`${getApiBaseUrl()}/api/devices`, {
-    headers: { 'Authorization': token },
-  })
+  const res = await authFetch(`${getApiBaseUrl()}/api/devices`)
   if (!res.ok) throw new Error('Failed to fetch devices')
   const data = await res.json()
   return data.devices || []
 }
 
 export async function getDeviceSessions(deviceId: string): Promise<Session[]> {
-  const token = getToken()
-  const res = await fetch(`${getApiBaseUrl()}/api/devices/sessions?device_id=${deviceId}`, {
-    headers: { 'Authorization': token },
-  })
+  const res = await authFetch(`${getApiBaseUrl()}/api/devices/sessions?device_id=${deviceId}`)
   if (!res.ok) throw new Error('Failed to fetch sessions')
   const data = await res.json()
   return data.sessions || []

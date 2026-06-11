@@ -6,6 +6,7 @@ import {
 } from '@capacitor/local-notifications'
 import { getApiBaseUrl } from '../config/api'
 import { getItem, setItem } from './storage'
+import { authFetch } from './api'
 
 export type NotificationEventType =
   | 'task_completed'
@@ -202,11 +203,7 @@ async function fetchNotifications(options?: {
   }
 
   const url = `${getApiBaseUrl()}/api/notifications${params.toString() ? `?${params.toString()}` : ''}`
-  const response = await fetch(url, {
-    headers: {
-      Authorization: token,
-    },
-  })
+  const response = await authFetch(url)
   if (!response.ok) {
     throw new Error('拉取通知失败')
   }
@@ -303,10 +300,9 @@ export async function markNotificationRead(notificationID: number): Promise<void
     return
   }
 
-  const response = await fetch(`${getApiBaseUrl()}/api/notifications/read`, {
+  const response = await authFetch(`${getApiBaseUrl()}/api/notifications/read`, {
     method: 'POST',
     headers: {
-      Authorization: token,
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({ notification_id: notificationID }),
@@ -322,11 +318,8 @@ export async function markAllNotificationsRead(): Promise<void> {
     return
   }
 
-  const response = await fetch(`${getApiBaseUrl()}/api/notifications/read-all`, {
+  const response = await authFetch(`${getApiBaseUrl()}/api/notifications/read-all`, {
     method: 'POST',
-    headers: {
-      Authorization: token,
-    },
   })
   if (!response.ok) {
     throw new Error('标记全部已读失败')

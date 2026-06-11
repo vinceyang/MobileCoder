@@ -1,8 +1,5 @@
 import { getApiBaseUrl } from '../config/api'
-
-function getToken() {
-  return localStorage.getItem('token') || ''
-}
+import { authFetch } from './api'
 
 export type TaskState = 'running' | 'waiting' | 'completed' | 'attention'
 export type TaskEventKind = 'info' | 'needs_input' | 'error' | 'test_result' | 'completed' | 'tool_step'
@@ -30,20 +27,16 @@ export interface Task {
 }
 
 export async function getTasks(): Promise<Task[]> {
-  const token = getToken()
-  const res = await fetch(`${getApiBaseUrl()}/api/tasks`, {
-    headers: { Authorization: token },
-  })
+  const res = await authFetch(`${getApiBaseUrl()}/api/tasks`)
+  if (res.status === 401) throw new Error('登录已过期，请重新登录')
   if (!res.ok) throw new Error('Failed to fetch tasks')
   const data = await res.json()
   return data.tasks || []
 }
 
 export async function getTask(taskId: string): Promise<Task> {
-  const token = getToken()
-  const res = await fetch(`${getApiBaseUrl()}/api/tasks/detail?id=${encodeURIComponent(taskId)}`, {
-    headers: { Authorization: token },
-  })
+  const res = await authFetch(`${getApiBaseUrl()}/api/tasks/detail?id=${encodeURIComponent(taskId)}`)
+  if (res.status === 401) throw new Error('登录已过期，请重新登录')
   if (!res.ok) throw new Error('Failed to fetch task')
   const data = await res.json()
   return data.task

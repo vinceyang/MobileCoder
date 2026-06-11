@@ -3,13 +3,16 @@ package handler
 import (
 	"encoding/json"
 	"net/http"
+	"time"
 
 	cloudauth "github.com/mobile-coder/cloud/internal/auth"
 	"github.com/mobile-coder/cloud/internal/service"
 )
 
+const userTokenRenewalWindow = 30 * 24 * time.Hour
+
 type AuthHandler struct {
-	authService *service.AuthService
+	authService  *service.AuthService
 	tokenManager *cloudauth.Manager
 }
 
@@ -96,5 +99,32 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		Email:   user.Email,
 		Token:   token,
 		Message: "login successful",
+	})
+}
+
+func (h *AuthHandler) Refresh(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	claims, err := h.tokenManager.VerifyAllowExpired(r.Header.Get("Authorization"))
+	if err != nil || claims.TokenType != "user" || !claims.RenewableAt(time.Now(), userTokenRenewalWindow) {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	token, err := h.tokenManager.Issue(claims.UserID, claims.Email)
+	if err != nil {
+		http.Error(w, "failed to issue token", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(AuthResponse{
+		UserID:  claims.UserID,
+		Email:   claims.Email,
+		Token:   token,
+		Message: "refresh successful",
 	})
 }
