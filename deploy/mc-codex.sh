@@ -67,7 +67,7 @@ export PATH
 
 usage() {
   cat <<EOF
-Usage: mc-codex [start|status|logs|stop|restart|attach|list]
+Usage: mc-codex [start|status|logs|stop|restart|attach|attach-agent|list]
 
 Environment overrides:
   MOBILECODER_SERVER   default: $SERVER
@@ -94,6 +94,51 @@ require_tools() {
   fi
 }
 
+quote_arg() {
+  printf '%q' "$1"
+}
+
+attach_command() {
+  printf 'TERM=xterm-256color tmux attach -t %s' "$(quote_arg "$1")"
+}
+
+tool_session_name() {
+  device_id_path="$HOME/.MobileCoder/device-id"
+  if [ ! -r "$device_id_path" ]; then
+    return 1
+  fi
+  device_id="$(tr -d '[:space:]' < "$device_id_path")"
+  if [ "${#device_id}" -lt 6 ]; then
+    return 1
+  fi
+  dir_name="$(basename "$RUN_DIR")"
+  if [ -z "$dir_name" ] || [ "$dir_name" = "/" ]; then
+    dir_name="root"
+  fi
+  dir_name="${dir_name//\//-}"
+  dir_name="${dir_name// /_}"
+  printf '%s-%s-%s' "$AI_TOOL" "${device_id:0:6}" "$dir_name"
+}
+
+print_attach_info() {
+  echo
+  echo "Supervisor attach:"
+  echo "  $(attach_command "$SESSION")"
+
+  if tool_session="$(tool_session_name 2>/dev/null)"; then
+    echo "Codex attach:"
+    echo "  $(attach_command "$tool_session")"
+    if tmux has-session -t "$tool_session" 2>/dev/null; then
+      echo "Codex session: running"
+    else
+      echo "Codex session: missing"
+      echo "Hint: run 'mc-codex restart' in $RUN_DIR to recreate it."
+    fi
+  else
+    echo "Codex attach: unavailable until the device id is created."
+  fi
+}
+
 show_status() {
   echo "server:  $SERVER"
   echo "ai:      $AI_TOOL"
@@ -116,6 +161,7 @@ show_status() {
   else
     echo "tmux:    stopped"
   fi
+  print_attach_info
 }
 
 list_services() {
@@ -127,9 +173,14 @@ start_service() {
   mkdir -p "$(dirname "$LOG_FILE")" "$RUN_DIR"
 
   if tmux has-session -t "$SESSION" 2>/dev/null; then
-    echo "$SESSION is already running."
-    show_status
-    return
+    if tool_session="$(tool_session_name 2>/dev/null)" && ! tmux has-session -t "$tool_session" 2>/dev/null; then
+      echo "$SESSION is running but $tool_session is missing; restarting $SESSION."
+      stop_service
+    else
+      echo "$SESSION is already running."
+      show_status
+      return
+    fi
   fi
 
   tmux new-session -d -s "$SESSION" -c "$RUN_DIR" \
@@ -144,6 +195,7 @@ start_service() {
 
   echo "$SESSION started."
   tail -n 80 "$LOG_FILE"
+  print_attach_info
 }
 
 stop_service() {
@@ -174,6 +226,14 @@ case "${1:-start}" in
     start_service
     ;;
   attach)
+    if tool_session="$(tool_session_name 2>/dev/null)" && tmux has-session -t "$tool_session" 2>/dev/null; then
+      exec tmux attach -t "$tool_session"
+    fi
+    echo "Codex session is not running for $RUN_DIR." >&2
+    echo "Run 'mc-codex restart' to recreate it, or 'mc-codex attach-agent' for the supervisor." >&2
+    exit 1
+    ;;
+  attach-agent)
     exec tmux attach -t "$SESSION"
     ;;
   list)
