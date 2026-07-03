@@ -252,6 +252,10 @@ func (h *Hub) SendLastOutput(client *Client) {
 	if client.SessionName != "" {
 		key = client.SessionName
 	}
+	clients, registered := h.clients[key]
+	if !registered || !clients[client] {
+		return
+	}
 	if output, ok := h.lastOutput[key]; ok && len(output) > 0 {
 		select {
 		case client.Send <- output:

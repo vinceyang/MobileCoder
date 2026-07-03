@@ -89,3 +89,64 @@ func TestRecordTerminalOutputClassifiesCompletedAndToolStepSignals(t *testing.T)
 		t.Fatalf("events[1].Kind = %q, want %q", events[1].Kind, service.TaskEventKindToolStep)
 	}
 }
+
+func TestSendLastOutputIgnoresUnregisteredClient(t *testing.T) {
+	hub := NewHub()
+	hub.lastOutput["feature"] = []byte(`{"type":"terminal_output","payload":{"content":"ready\n"}}`)
+	client := &Client{
+		DeviceID:    "dev-1",
+		SessionName: "feature",
+		Send:        make(chan []byte, 1),
+	}
+	close(client.Send)
+
+	defer func() {
+		if recovered := recover(); recovered != nil {
+			t.Fatalf("SendLastOutput panicked for unregistered client: %v", recovered)
+		}
+	}()
+
+	hub.SendLastOutput(client)
+}
+
+func TestSendLastOutputSendsToRegisteredClient(t *testing.T) {
+	hub := NewHub()
+	client := &Client{
+		DeviceID:    "dev-1",
+		SessionName: "feature",
+		Send:        make(chan []byte, 1),
+	}
+	hub.clients["feature"] = map[*Client]bool{client: true}
+	want := []byte(`{"type":"terminal_output","payload":{"content":"ready\n"}}`)
+	hub.lastOutput["feature"] = want
+
+	hub.SendLastOutput(client)
+
+	select {
+	case got := <-client.Send:
+		if string(got) != string(want) {
+			t.Fatalf("output = %q, want %q", string(got), string(want))
+		}
+	default:
+		t.Fatal("SendLastOutput did not send to registered client")
+	}
+}
+
+func TestSendLastOutputSkipsClientRegisteredOnDifferentKey(t *testing.T) {
+	hub := NewHub()
+	client := &Client{
+		DeviceID:    "dev-1",
+		SessionName: "feature",
+		Send:        make(chan []byte, 1),
+	}
+	hub.clients["other"] = map[*Client]bool{client: true}
+	hub.lastOutput["feature"] = []byte(`{"type":"terminal_output","payload":{"content":"ready\n"}}`)
+
+	hub.SendLastOutput(client)
+
+	select {
+	case got := <-client.Send:
+		t.Fatalf("unexpected output sent to wrong key: %q", got)
+	default:
+	}
+}
