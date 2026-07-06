@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"log"
+	"strings"
 	"time"
 
 	"github.com/mobile-coder/cloud/internal/db"
@@ -49,10 +50,25 @@ func generateCode(length int) string {
 	return hex.EncodeToString(bytes)[:length]
 }
 
+func parseBindCodeExpiration(value string) (time.Time, error) {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return time.Time{}, ErrBindCodeExpired
+	}
+
+	if parsed, err := time.Parse(time.RFC3339Nano, value); err == nil {
+		return parsed, nil
+	}
+	if parsed, err := time.ParseInLocation("2006-01-02T15:04:05.999999", value, time.UTC); err == nil {
+		return parsed, nil
+	}
+	return time.ParseInLocation("2006-01-02T15:04:05", value, time.UTC)
+}
+
 // RegisterDevice creates a device with user-provided bind code (for Desktop Agent)
 func (s *DeviceService) RegisterDevice(bindCode, deviceName string) (*Device, error) {
 	deviceID := generateCode(16)
-	bindCodeExp := time.Now().Add(10 * time.Minute).Format(time.RFC3339)
+	bindCodeExp := time.Now().UTC().Add(10 * time.Minute).Format(time.RFC3339)
 
 	// UserID is 0 until H5 binds the device
 	device, err := s.db.CreateDevice(0, deviceID, deviceName, bindCode, bindCodeExp)
@@ -60,8 +76,7 @@ func (s *DeviceService) RegisterDevice(bindCode, deviceName string) (*Device, er
 		return nil, err
 	}
 
-	loc := time.FixedZone("UTC+8", 8*3600)
-	parsedTime, _ := time.ParseInLocation("2006-01-02T15:04:05", device.BindCodeExp, loc)
+	parsedTime, _ := parseBindCodeExpiration(device.BindCodeExp)
 	return &Device{
 		ID:          device.ID,
 		UserID:      device.UserID,
@@ -76,16 +91,14 @@ func (s *DeviceService) RegisterDevice(bindCode, deviceName string) (*Device, er
 func (s *DeviceService) CreateBindCode(userID int64, deviceName string) (*Device, error) {
 	deviceID := generateCode(16)
 	bindCode := generateCode(6)
-	bindCodeExp := time.Now().Add(10 * time.Minute).Format(time.RFC3339)
+	bindCodeExp := time.Now().UTC().Add(10 * time.Minute).Format(time.RFC3339)
 
 	device, err := s.db.CreateDevice(userID, deviceID, deviceName, bindCode, bindCodeExp)
 	if err != nil {
 		return nil, err
 	}
 
-	// Parse time - Supabase stores as "2026-02-25T18:03:16" without timezone
-	loc := time.FixedZone("UTC+8", 8*3600)
-	parsedTime, _ := time.ParseInLocation("2006-01-02T15:04:05", device.BindCodeExp, loc)
+	parsedTime, _ := parseBindCodeExpiration(device.BindCodeExp)
 	return &Device{
 		ID:          device.ID,
 		UserID:      device.UserID,
@@ -103,10 +116,7 @@ func (s *DeviceService) BindDevice(userID int64, bindCode string) (*Device, erro
 		return nil, ErrDeviceNotFound
 	}
 
-	// Parse time - Supabase stores as "2026-02-25T18:03:16" without timezone
-	// Use time.Parse without timezone (local time)
-	loc := time.FixedZone("UTC+8", 8*3600)
-	parsedTime, err := time.ParseInLocation("2006-01-02T15:04:05", device.BindCodeExp, loc)
+	parsedTime, err := parseBindCodeExpiration(device.BindCodeExp)
 	if err != nil {
 		log.Printf("Failed to parse bind_code_exp: %v, value: %s", err, device.BindCodeExp)
 		return nil, ErrBindCodeExpired
@@ -208,9 +218,7 @@ func (s *DeviceService) ListAllDevices() ([]Device, error) {
 
 	var result []Device
 	for _, d := range devices {
-		// Parse time - Supabase stores as "2026-02-25T18:03:16" without timezone
-		loc := time.FixedZone("UTC+8", 8*3600)
-		parsedTime, _ := time.ParseInLocation("2006-01-02T15:04:05", d.BindCodeExp, loc)
+		parsedTime, _ := parseBindCodeExpiration(d.BindCodeExp)
 
 		result = append(result, Device{
 			ID:          d.ID,
@@ -232,9 +240,7 @@ func (s *DeviceService) BindDeviceByCode(bindCode string) (*Device, error) {
 		return nil, ErrDeviceNotFound
 	}
 
-	// Parse time - Supabase stores as "2026-02-25T18:03:16" without timezone
-	loc := time.FixedZone("UTC+8", 8*3600)
-	parsedTime, err := time.ParseInLocation("2006-01-02T15:04:05", device.BindCodeExp, loc)
+	parsedTime, err := parseBindCodeExpiration(device.BindCodeExp)
 	if err != nil {
 		log.Printf("Failed to parse bind_code_exp: %v, value: %s", err, device.BindCodeExp)
 		return nil, ErrBindCodeExpired
