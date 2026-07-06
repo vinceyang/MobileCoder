@@ -130,6 +130,9 @@ func generateCode(length int) string {
 
 // getDeviceName returns the computer's hostname
 func getDeviceName() string {
+	if configured := strings.TrimSpace(os.Getenv("MOBILECODER_DEVICE_NAME")); configured != "" {
+		return configured
+	}
 	hostname, err := os.Hostname()
 	if err != nil || hostname == "" {
 		return "Desktop Agent"

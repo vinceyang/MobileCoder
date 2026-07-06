@@ -77,6 +77,7 @@ Environment overrides:
   MOBILECODER_CLIENT   default: $CLIENT
   MOBILECODER_LOG      default: $LOG_FILE
   MOBILECODER_RUN_DIR  default: $RUN_DIR
+  MOBILECODER_DEVICE_NAME  default: host name
 EOF
 }
 
@@ -184,8 +185,13 @@ start_service() {
     fi
   fi
 
-  tmux new-session -d -s "$SESSION" -c "$RUN_DIR" \
-    "PATH=\"$PATH\" \"$CLIENT\" -server \"$SERVER\" -ai \"$AI_TOOL\" >> \"$LOG_FILE\" 2>&1"
+  start_cmd="PATH=$(quote_arg "$PATH")"
+  if [ -n "${MOBILECODER_DEVICE_NAME:-}" ]; then
+    start_cmd="$start_cmd MOBILECODER_DEVICE_NAME=$(quote_arg "$MOBILECODER_DEVICE_NAME")"
+  fi
+  start_cmd="$start_cmd $(quote_arg "$CLIENT") -server $(quote_arg "$SERVER") -ai $(quote_arg "$AI_TOOL") >> $(quote_arg "$LOG_FILE") 2>&1"
+
+  tmux new-session -d -s "$SESSION" -c "$RUN_DIR" "$start_cmd"
 
   sleep 2
   if ! tmux has-session -t "$SESSION" 2>/dev/null; then

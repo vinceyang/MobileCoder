@@ -13,6 +13,14 @@ import (
 	"time"
 )
 
+func TestGetDeviceNameUsesEnvironmentOverride(t *testing.T) {
+	t.Setenv("MOBILECODER_DEVICE_NAME", " Macmini ")
+
+	if got := getDeviceName(); got != "Macmini" {
+		t.Fatalf("getDeviceName() = %q, want %q", got, "Macmini")
+	}
+}
+
 func TestLoadOrCreateDeviceIDClearsStaleBindCodeForDeviceWithAgentToken(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
 
