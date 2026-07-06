@@ -50,6 +50,10 @@ func generateCode(length int) string {
 	return hex.EncodeToString(bytes)[:length]
 }
 
+func normalizeBindCode(value string) string {
+	return strings.ToLower(strings.TrimSpace(value))
+}
+
 func parseBindCodeExpiration(value string) (time.Time, error) {
 	value = strings.TrimSpace(value)
 	if value == "" {
@@ -67,6 +71,7 @@ func parseBindCodeExpiration(value string) (time.Time, error) {
 
 // RegisterDevice creates a device with user-provided bind code (for Desktop Agent)
 func (s *DeviceService) RegisterDevice(bindCode, deviceName string) (*Device, error) {
+	bindCode = normalizeBindCode(bindCode)
 	deviceID := generateCode(16)
 	bindCodeExp := time.Now().UTC().Add(10 * time.Minute).Format(time.RFC3339)
 
@@ -111,6 +116,7 @@ func (s *DeviceService) CreateBindCode(userID int64, deviceName string) (*Device
 }
 
 func (s *DeviceService) BindDevice(userID int64, bindCode string) (*Device, error) {
+	bindCode = normalizeBindCode(bindCode)
 	device, err := s.db.GetDeviceByBindCode(bindCode)
 	if err != nil {
 		return nil, ErrDeviceNotFound
@@ -187,6 +193,7 @@ func (s *DeviceService) CreateBindCodeSimple(deviceName string) (*Device, error)
 
 // BindDeviceSimple - 简化版，无需用户登录，绑定码永久有效
 func (s *DeviceService) BindDeviceSimple(bindCode string) (*Device, error) {
+	bindCode = normalizeBindCode(bindCode)
 	device, err := s.db.GetDeviceByBindCode(bindCode)
 	if err != nil {
 		return nil, ErrDeviceNotFound
@@ -235,6 +242,7 @@ func (s *DeviceService) ListAllDevices() ([]Device, error) {
 
 // BindDeviceByCode binds a device using just the bind code (for Desktop Agent)
 func (s *DeviceService) BindDeviceByCode(bindCode string) (*Device, error) {
+	bindCode = normalizeBindCode(bindCode)
 	device, err := s.db.GetDeviceByBindCode(bindCode)
 	if err != nil {
 		return nil, ErrDeviceNotFound
@@ -266,6 +274,7 @@ func (s *DeviceService) BindDeviceByCode(bindCode string) (*Device, error) {
 
 // BindDeviceToUser 将设备绑定到用户
 func (s *DeviceService) BindDeviceToUser(bindCode string, userID int64) (*Device, error) {
+	bindCode = normalizeBindCode(bindCode)
 	// 通过绑定码找到设备
 	device, err := s.db.GetDeviceByBindCode(bindCode)
 	if err != nil {

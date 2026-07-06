@@ -28,3 +28,10 @@ func TestParseBindCodeExpirationAcceptsRFC3339Timestamp(t *testing.T) {
 		t.Fatalf("parsed time = %s, want %s", got.Format(time.RFC3339), want.Format(time.RFC3339))
 	}
 }
+
+func TestNormalizeBindCodeLowercasesAndTrimsInput(t *testing.T) {
+	got := normalizeBindCode(" C0db0d ")
+	if got != "c0db0d" {
+		t.Fatalf("normalizeBindCode = %q, want %q", got, "c0db0d")
+	}
+}
