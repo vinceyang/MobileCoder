@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+CMD_NAME="$(basename "$0")"
 SERVER="${MOBILECODER_SERVER:-121.41.69.142:8080}"
 AI_TOOL="${MOBILECODER_AI:-codex}"
 CLIENT="${MOBILECODER_CLIENT:-$HOME/.local/bin/mobilecoder-client}"
@@ -67,7 +68,7 @@ export PATH
 
 usage() {
   cat <<EOF
-Usage: mc-codex [start|status|logs|stop|restart|attach|attach-agent|list]
+Usage: $CMD_NAME [start|status|logs|stop|restart|attach|attach-agent|list]
 
 Environment overrides:
   MOBILECODER_SERVER   default: $SERVER
@@ -126,16 +127,16 @@ print_attach_info() {
   echo "  $(attach_command "$SESSION")"
 
   if tool_session="$(tool_session_name 2>/dev/null)"; then
-    echo "Codex attach:"
+    echo "Tool attach ($AI_TOOL):"
     echo "  $(attach_command "$tool_session")"
     if tmux has-session -t "$tool_session" 2>/dev/null; then
-      echo "Codex session: running"
+      echo "Tool session: running"
     else
-      echo "Codex session: missing"
-      echo "Hint: run 'mc-codex restart' in $RUN_DIR to recreate it."
+      echo "Tool session: missing"
+      echo "Hint: run '$CMD_NAME restart' in $RUN_DIR to recreate it."
     fi
   else
-    echo "Codex attach: unavailable until the device id is created."
+    echo "Tool attach ($AI_TOOL): unavailable until the device id is created."
   fi
 }
 
@@ -229,8 +230,8 @@ case "${1:-start}" in
     if tool_session="$(tool_session_name 2>/dev/null)" && tmux has-session -t "$tool_session" 2>/dev/null; then
       exec tmux attach -t "$tool_session"
     fi
-    echo "Codex session is not running for $RUN_DIR." >&2
-    echo "Run 'mc-codex restart' to recreate it, or 'mc-codex attach-agent' for the supervisor." >&2
+    echo "Tool session ($AI_TOOL) is not running for $RUN_DIR." >&2
+    echo "Run '$CMD_NAME restart' to recreate it, or '$CMD_NAME attach-agent' for the supervisor." >&2
     exit 1
     ;;
   attach-agent)
