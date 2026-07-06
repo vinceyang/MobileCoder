@@ -150,3 +150,41 @@ func TestSendLastOutputSkipsClientRegisteredOnDifferentKey(t *testing.T) {
 	default:
 	}
 }
+
+func TestHasAgentReturnsTrueForRegisteredAgentSession(t *testing.T) {
+	hub := NewHub()
+	agent := &Client{
+		DeviceID:    "dev-1",
+		SessionName: "feature",
+		IsAgent:     true,
+		Send:        make(chan []byte, 1),
+	}
+	viewer := &Client{
+		DeviceID:    "dev-1",
+		SessionName: "feature",
+		IsAgent:     false,
+		Send:        make(chan []byte, 1),
+	}
+	hub.clients["feature"] = map[*Client]bool{agent: true, viewer: true}
+
+	if !hub.HasAgent("dev-1", "feature") {
+		t.Fatal("HasAgent returned false for a registered agent")
+	}
+}
+
+func TestUnregisterRemovesAgentSynchronously(t *testing.T) {
+	hub := NewHub()
+	agent := &Client{
+		DeviceID:    "dev-1",
+		SessionName: "feature",
+		IsAgent:     true,
+		Send:        make(chan []byte, 1),
+	}
+	hub.clients["feature"] = map[*Client]bool{agent: true}
+
+	hub.Unregister(agent)
+
+	if hub.HasAgent("dev-1", "feature") {
+		t.Fatal("HasAgent returned true after unregistering the only agent")
+	}
+}

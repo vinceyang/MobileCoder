@@ -68,26 +68,7 @@ func (h *Hub) Run() {
 			h.mu.Unlock()
 
 		case client := <-h.unregister:
-			h.mu.Lock()
-			// Use sessionName as key if available, otherwise use deviceID
-			key := client.DeviceID
-			if client.SessionName != "" {
-				key = client.SessionName
-			}
-			if clients, ok := h.clients[key]; ok {
-				if _, exists := clients[client]; exists {
-					delete(clients, client)
-					close(client.Send)
-					log.Printf("Hub: unregistered client, key=%s, isAgent=%v, remainingClients=%d",
-						key, client.IsAgent, len(clients))
-				}
-				// 只在没有客户端时删除 key
-				if len(clients) == 0 {
-					delete(h.clients, key)
-					log.Printf("Hub: key=%s has no clients, removed", key)
-				}
-			}
-			h.mu.Unlock()
+			h.unregisterClient(client)
 		}
 	}
 }
@@ -97,7 +78,47 @@ func (h *Hub) Register(client *Client) {
 }
 
 func (h *Hub) Unregister(client *Client) {
-	h.unregister <- client
+	h.unregisterClient(client)
+}
+
+func (h *Hub) unregisterClient(client *Client) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	key := client.DeviceID
+	if client.SessionName != "" {
+		key = client.SessionName
+	}
+	if clients, ok := h.clients[key]; ok {
+		if _, exists := clients[client]; exists {
+			delete(clients, client)
+			close(client.Send)
+			log.Printf("Hub: unregistered client, key=%s, isAgent=%v, remainingClients=%d",
+				key, client.IsAgent, len(clients))
+		}
+		if len(clients) == 0 {
+			delete(h.clients, key)
+			log.Printf("Hub: key=%s has no clients, removed", key)
+		}
+	}
+}
+
+func (h *Hub) HasAgent(deviceID string, sessionName string) bool {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+
+	key := deviceID
+	if sessionName != "" {
+		key = sessionName
+	}
+	if clients, ok := h.clients[key]; ok {
+		for client := range clients {
+			if client.IsAgent {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func (h *Hub) SendToDevice(deviceID string, message []byte) bool {
