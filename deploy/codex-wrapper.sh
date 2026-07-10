@@ -6,8 +6,10 @@ CODEX_BIN="$NODE_BIN/codex"
 
 export PATH="$HOME/.local/bin:$HOME/.bun/bin:$NODE_BIN:$PATH"
 
-# This service provides 127.0.0.1:7891 on some machines, but the port can be
-# open while its upstream route is broken. Always probe the route before use.
+# outline-mac mirrors the user's MacBook Outline transport on the target host.
+# Some older outline-codex routes keep their local port open even when the
+# upstream is broken, so always probe the route before use.
+systemctl --user start outline-mac-http-proxy.service >/dev/null 2>&1 || true
 systemctl --user start outline-codex-http-proxy.service >/dev/null 2>&1 || true
 
 append_no_proxy() {
@@ -34,7 +36,11 @@ use_http_proxy() {
 
 append_no_proxy
 
-if proxy_reaches_openai "http://127.0.0.1:7890"; then
+if proxy_reaches_openai "http://127.0.0.1:7894"; then
+  use_http_proxy "http://127.0.0.1:7894"
+  export ALL_PROXY="http://127.0.0.1:7894"
+  export all_proxy="$ALL_PROXY"
+elif proxy_reaches_openai "http://127.0.0.1:7890"; then
   use_http_proxy "http://127.0.0.1:7890"
   export ALL_PROXY="socks5h://127.0.0.1:7890"
   export all_proxy="$ALL_PROXY"
