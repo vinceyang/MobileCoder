@@ -66,6 +66,37 @@ if [ -d "$HOME/.nvm/versions/node" ]; then
 fi
 export PATH
 
+server_host() {
+  printf '%s' "${SERVER%%:*}"
+}
+
+append_no_proxy_host() {
+  host="$1"
+  if [ -z "$host" ]; then
+    return
+  fi
+
+  current="${NO_PROXY:-${no_proxy:-}}"
+  case ",$current," in
+    *",$host,"*) ;;
+    *) current="${current:+$current,}$host" ;;
+  esac
+  export NO_PROXY="$current"
+  export no_proxy="$current"
+}
+
+sync_tmux_environment() {
+  append_no_proxy_host "$(server_host)"
+
+  for name in HTTP_PROXY HTTPS_PROXY ALL_PROXY NO_PROXY http_proxy https_proxy all_proxy no_proxy; do
+    if [ "${!name+x}" = "x" ]; then
+      tmux set-environment -g "$name" "${!name}" >/dev/null 2>&1 || true
+    else
+      tmux set-environment -gu "$name" >/dev/null 2>&1 || true
+    fi
+  done
+}
+
 usage() {
   cat <<EOF
 Usage: $CMD_NAME [start|status|logs|stop|restart|attach|attach-agent|list]
@@ -173,6 +204,7 @@ list_services() {
 start_service() {
   require_tools
   mkdir -p "$(dirname "$LOG_FILE")" "$RUN_DIR"
+  sync_tmux_environment
 
   if tmux has-session -t "$SESSION" 2>/dev/null; then
     if tool_session="$(tool_session_name 2>/dev/null)" && ! tmux has-session -t "$tool_session" 2>/dev/null; then
@@ -193,11 +225,31 @@ start_service() {
 
   tmux new-session -d -s "$SESSION" -c "$RUN_DIR" "$start_cmd"
 
-  sleep 2
-  if ! tmux has-session -t "$SESSION" 2>/dev/null; then
-    echo "failed to start $SESSION" >&2
-    tail -n 80 "$LOG_FILE" 2>/dev/null || true
-    exit 1
+  expected_tool_session=""
+  if expected_tool_session="$(tool_session_name 2>/dev/null)"; then
+    for _ in $(seq 1 30); do
+      if ! tmux has-session -t "$SESSION" 2>/dev/null; then
+        echo "failed to start $SESSION" >&2
+        tail -n 120 "$LOG_FILE" 2>/dev/null || true
+        exit 1
+      fi
+      if tmux has-session -t "$expected_tool_session" 2>/dev/null; then
+        break
+      fi
+      sleep 1
+    done
+    if ! tmux has-session -t "$expected_tool_session" 2>/dev/null; then
+      echo "failed to start tool session $expected_tool_session" >&2
+      tail -n 120 "$LOG_FILE" 2>/dev/null || true
+      exit 1
+    fi
+  else
+    sleep 2
+    if ! tmux has-session -t "$SESSION" 2>/dev/null; then
+      echo "failed to start $SESSION" >&2
+      tail -n 120 "$LOG_FILE" 2>/dev/null || true
+      exit 1
+    fi
   fi
 
   echo "$SESSION started."
